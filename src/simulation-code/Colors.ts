@@ -1,13 +1,6 @@
 export const Colors: number[] = [];
 
 (() => {
-  function swap32(val) {
-    return ((val & 0xFF) << 24)
-      | ((val & 0xFF00) << 8)
-      | ((val >> 8) & 0xFF00)
-      | ((val >> 24) & 0xFF);
-  }
-
   let endianNess = (() => {
     let uInt32 = new Uint32Array([0x11223344]);
     let uInt8 = new Uint8Array(uInt32.buffer);
@@ -23,21 +16,26 @@ export const Colors: number[] = [];
 
   const colorToNumber = (endianNess === 'Big Endian') ?
     (r: number, g: number, b: number, a = 255) => {
-      return r << 24 | g << 16 | b << 8 | a;
+      return r * 256 * 256 * 256 + g * 256 * 256 + b * 256 + a;
     }
     :
     (r: number, g: number, b: number, a = 255) => {
-      return a << 24 | b << 16 | g << 8 | r;
+      return a * 256 * 256 * 256 + b * 256 * 256 + g * 256 + r;
     };
 
 
   Colors.push(colorToNumber(0, 0, 0));
   Colors.push(colorToNumber(0, 255, 0));
 
-  for (let r = 1; r >= .4; r -= .3)
-    for (let g = 1; g >= .4; g -= .3)
-      for (let b = 1; b >= .4; b -= .3)
-        if (r != 0 || g != 1 || b != 0) {
-          Colors.push(colorToNumber(Math.floor(r * 255), Math.floor(g * 255), Math.floor(b * 255)));
-        }
+  Colors.push(colorToNumber(255, 0, 0));
+  Colors.push(colorToNumber(0, 0, 255));
+  Colors.push(colorToNumber(255, 255, 0));
+  Colors.push(colorToNumber(0, 255, 255));
+
+  // for (let r = 1; r >= .4; r -= .3)
+  //   for (let g = 1; g >= .4; g -= .3)
+  //     for (let b = 1; b >= .4; b -= .3)
+  //       if (r != 0 || g != 1 || b != 0) {
+  //         Colors.push(colorToNumber(Math.floor(r * 255), Math.floor(g * 255), Math.floor(b * 255)));
+  //       }
 })();

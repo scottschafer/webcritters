@@ -6,6 +6,8 @@ import { worker } from 'cluster';
 import { SimulationConstants } from './common/SimulationConstants';
 import { CellsData } from './common/CellsData';
 import { SharedData } from './common/SharedData';
+import { Settings } from './simulation-code/Settings';
+import { WorldSummary } from './common/WorldSummary';
 
 const workerAPI = (() => {
   const worker = new Worker("./simulation-worker", {
@@ -18,6 +20,8 @@ const workerAPI = (() => {
 
 class SimulationStore {
   sharedArrayBufferUint8Array: Uint8Array;
+  @observable settings: Settings = new Settings();
+  @observable.ref summary: WorldSummary = null;
 
   sharedData: SharedData = {
     canvasBuffer: new SharedArrayBuffer(SimulationConstants.worldDim * SimulationConstants.worldDim * 4),
@@ -52,7 +56,7 @@ class SimulationStore {
     this.speed = value;
 
     if (!oldSpeed && this.speed) {
-      this.turnCrank();
+      this.takeTurn();
     }
   }
 
@@ -80,24 +84,31 @@ class SimulationStore {
     }
     this.started = true;
     console.log('startSimulation');
-    workerAPI.init(this.sharedData);
-    this.turnCrank();
+    workerAPI.init(this.sharedData, toJS(this.settings));
+
+    this.takeTurn();
   }
 
   @action setTurn(turn: number) {
     this.turn = turn;
   }
 
-  @action.bound turnCrank() {
-    workerAPI.turnCrank().then(result => {
+  @action.bound takeTurn() {
+    workerAPI.takeTurn().then(result => {
       // console.log(`turn crank #${result}`);
       this.setTurn(result);
       if (this.delay) {
         if (this.delay > 0) {
-          setTimeout(this.turnCrank, this.delay);
+          setTimeout(this.takeTurn, this.delay);
         }
       } else {
-        this.turnCrank();
+        this.takeTurn();
+      }
+
+      if (!(result % 100)) {
+        workerAPI.getSummary().then(result => {
+          this.summary = result;
+        });
       }
     });
   }

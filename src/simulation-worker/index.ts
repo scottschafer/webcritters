@@ -3,14 +3,16 @@ import {
   // takeALongTimeToDoSomething,
   // takeALongTimeToAddTwoNumbers,
   init,
-  turnCrank
+  takeTurn,
+  getSummary
 } from "../simulation-code/simulation";
 
 const exports = {
   // takeALongTimeToDoSomething,
   // takeALongTimeToAddTwoNumbers,
   init,
-  turnCrank
+  takeTurn,
+  getSummary
 };
 export type SimulationWorker = typeof exports;
 
