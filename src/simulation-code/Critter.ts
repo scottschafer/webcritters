@@ -2,8 +2,20 @@ import { SimulationConstants } from '../common/SimulationConstants';
 import { Colors } from './Colors';
 import { cellLengthFromGenome, GenomeCode } from './Genome';
 import { genomeRepository } from './GenomeRepository';
+import { Globals } from './Globals';
 import { Orientation } from './Orientation';
 import { World } from './World';
+import { Settings } from './Settings';
+import { runInThisContext } from 'vm';
+
+// const commandHandlers: { [code:string] : (critter: Critter, settings: Settings) => void } =
+// {
+//   (GenomeCode.Photosynthesize): (critter: Critter, settings: Settings) => {
+
+//   }  
+
+// };
+
 
 export class Critter {
   genomeIndex: number = -1;
@@ -12,24 +24,27 @@ export class Critter {
   orientation: number;
   length: number;
   age: number;
-  cellPosX = new Array<number>(SimulationConstants.maxCritterLength);
-  cellPosY = new Array<number>(SimulationConstants.maxCritterLength);
-  colors = new Array<number>(SimulationConstants.maxCritterLength);
   maxLifespan: number;
   spawnEnergy: number;
   photosynthesizing: boolean = false;
   pc: number;
   unfolded: boolean = false;
+  color: number;
+  cellPositions = new Array<number>(SimulationConstants.maxCritterLength);
 
+  constructor(public readonly critterIndex: number) {
+  }
 
-  init(world: World, genomeIndex: number, x: number, y: number) {
+  init(settings: Settings, genomeIndex: number, point: number) {
     this.genomeIndex = genomeIndex;
     this.genome = genomeRepository.indexToGenome[genomeIndex];
     const length = this.length = cellLengthFromGenome(this.genome);
     this.unfolded = length === 1;
+    this.color = (length === 1 && this.genome[1] === GenomeCode.Photosynthesize) ? Colors[1] : Colors[2];
 
-    this.maxLifespan = Math.floor(length * world.settings.lifespanPerCell * (Math.random() / 2 + .5));
-    this.spawnEnergy = world.settings.spawnEnergyPerCell * length;
+
+    this.maxLifespan = Math.floor(length * settings.lifespanPerCell * (Math.random() / 2 + .5));
+    this.spawnEnergy = settings.spawnEnergyPerCell * length;
     this.energy = this.spawnEnergy / 2;
     this.age = 0;
     this.pc = 0;
@@ -37,27 +52,24 @@ export class Critter {
     this.orientation = Math.floor(4 * Math.random());
 
     for (let i = 0; i < length; i++) {
-      this.cellPosX[i] = x;
-      this.cellPosY[i] = y;
-      this.colors[i] = (length === 1) ? Colors[1] : Colors[2];
+      this.cellPositions[i] = point;
     }
   }
 
-  takeTurn(world: World, critterIndex: number) {
+  takeTurn(settings: Settings) {
 
-    this.energy -= world.settings.turnCost;
+    this.energy -= settings.turnCost;
     ++this.age;
 
     const setPhotosynthesizing = (value: boolean) => {
       if (value !== this.photosynthesizing) {
-        const color = this.photosynthesizing ? Colors[1] : this.colors[0];
-        for (let i = 0; i < this.length; i++) {
-          world.setPixel(this.cellPosX[i], this.cellPosY[i], color, critterIndex);
-        }
         this.photosynthesizing = value;
+        const color = this.photosynthesizing ? Colors[1] : this.color;
+        for (let i = 0; i < this.length; i++) {
+          Globals.setPixel(this.cellPositions[i], color, this.critterIndex);
+        }
       }
     };
-
 
     if (this.photosynthesizing) {
       // this.energy += world.settings.photoSynthesisEnergy;
@@ -67,67 +79,60 @@ export class Critter {
     const code = this.genome[this.pc + 1];
     switch (code) {
       case GenomeCode.Photosynthesize:
+        setPhotosynthesizing(true);
         if (this.unfolded) {
-          this.energy += world.settings.photoSynthesisEnergy;
-          setPhotosynthesizing(true);
+          this.energy += settings.photoSynthesisEnergy;
         }
         break;
 
       case GenomeCode.Move:
-        this.move(false, world, critterIndex);
         setPhotosynthesizing(false);
+        this.move(settings, false);
         break;
 
-
       case GenomeCode.MoveAndEat:
-        this.move(true, world, critterIndex);
+        this.move(settings, true);
         setPhotosynthesizing(false);
         break;
     }
     this.pc = (this.pc + 2) % this.genome.length;
   }
 
-  move(andEat: boolean, world: World, critterIndex: number) {
-    this.energy -= world.settings.moveCost;
+  move(settings: Settings, andEat: boolean) {
+    this.energy -= settings.moveCost;
     const delta = Orientation.deltas[this.orientation];
-    const newHeadX = this.cellPosX[0] + delta[0];
-    const newHeadY = this.cellPosY[0] + delta[1];
+    const newHead = (this.cellPositions[0] + delta) & 0xffff;
 
-    if (newHeadX >= 0 && newHeadX >= 0 && newHeadX < SimulationConstants.worldDim && newHeadY < SimulationConstants.worldDim) {
-      const destPixel = world.pixelArray[newHeadY * SimulationConstants.worldDim + newHeadX];
-      if (destPixel === Colors[0]) {
+    const destPixel = Globals.pixelArray[newHead];
+    if (destPixel === Colors[0]) {
 
-        const color = this.photosynthesizing ? Colors[1] : this.colors[0];
+      const color = this.photosynthesizing ? Colors[1] : this.color;
 
+      const tail = this.cellPositions[this.length - 1];
 
-        const tailX = this.cellPosX[this.length - 1];
-        const tailY = this.cellPosY[this.length - 1];
+      for (let i = 1; i < this.length; i++) {
+        this.cellPositions[i] = this.cellPositions[i - 1];
+      }
 
-        for (let i = 1; i < this.length; i++) {
-          this.cellPosX[i] = this.cellPosX[i - 1];
-          this.cellPosY[i] = this.cellPosY[i - 1];
-        }
+      // set head
+      this.cellPositions[0] = newHead;
 
-        // set head
-        this.cellPosX[0] = newHeadX;
-        this.cellPosY[0] = newHeadY;
-        world.setPixel(newHeadX, newHeadY, color, critterIndex);
+      Globals.setPixel(newHead, this.color, this.critterIndex);
 
-        if (tailX !== this.cellPosX[this.length - 1] || tailY !== this.cellPosY[this.length - 1]) {
-          world.setPixel(tailX, tailY, Colors[0]);
-          this.unfolded = true;
-        }
-      } else {
-        const hitCritter = world.getCritterAtPos(newHeadX, newHeadY);
-        if (hitCritter && hitCritter.photosynthesizing) {
-          this.energy += hitCritter.energy * world.settings.digestionEfficiency;
-          hitCritter.energy = -100;
-        }
+      if (tail !== this.cellPositions[this.length - 1]) {
+        Globals.setPixel(tail, Colors[0], 0);
+        this.unfolded = true;
+      }
+    } else {
+      const hitCritter = Globals.critters[Globals.pointToCritterIndex[newHead]];
+      if (hitCritter && hitCritter.photosynthesizing) {
+        this.energy += hitCritter.energy * settings.digestionEfficiency;
+        hitCritter.energy = -100;
       }
     }
   }
 
-  canSpawn(world: World) {
+  canSpawn() {
     return this.energy > this.spawnEnergy;
   }
 

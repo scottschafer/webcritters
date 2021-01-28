@@ -81,14 +81,6 @@ const App: React.FC = observer(() => {
   useEffect(() => {
     simulationStore.startSimulation();
   });
-  // return (
-  //   <div className="App">
-  //   </div>
-  // );
-  // const [number1, setNumber1] = useState(1);
-  // const [number2, setNumber2] = useState(2);
-
-  // const total = useTakeALongTimeToAddTwoNumbers(number1, number2);
 
   return (
     <div className="App">

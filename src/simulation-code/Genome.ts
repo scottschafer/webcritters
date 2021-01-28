@@ -1,5 +1,6 @@
 import { SimulationConstants } from '../common/SimulationConstants';
 import { Settings } from './Settings';
+
 export enum GenomeCode {
   Photosynthesize = 'P',
   MoveAndEat = 'M',
@@ -22,6 +23,7 @@ export enum GenomeConditions {
 };
 
 export const PhotosynthesizeGenome = GenomeConditions.ConditionAlways + GenomeCode.Photosynthesize;
+export const MoveAndEatGenome = GenomeConditions.ConditionAlways + GenomeCode.MoveAndEat;
 
 enum MutationType {
   insert,
@@ -38,7 +40,7 @@ function getRandomCode() {
 
 export function reproduceGenome(genome: string, settings: Settings) {
 
-  if (Math.random() < (settings.mutationRate / 100)) {
+  if (Math.random() > (settings.mutationRate / 100)) {
     // no mutation
     return genome;
   }
@@ -47,7 +49,6 @@ export function reproduceGenome(genome: string, settings: Settings) {
   let mutationType = Math.floor(Math.random() * 3);
   switch (mutationType) {
     case MutationType.insert: {
-      return genome;
       if (genome.length >= SimulationConstants.maxGenomeLength) {
         return genome;
       }

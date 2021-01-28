@@ -25,18 +25,18 @@ class SimulationStore {
 
   sharedData: SharedData = {
     canvasBuffer: new SharedArrayBuffer(SimulationConstants.worldDim * SimulationConstants.worldDim * 4),
-    cellsData: {
-      x_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
-      y_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
-      colors_u32: new SharedArrayBuffer(SimulationConstants.maxCells * 4),
-      nextCell_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2)
-    },
-    crittersData: {
-      firstCellIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
-      genomeIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
-      energy_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
-      orientation_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
-    }
+    // cellsData: {
+    //   x_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
+    //   y_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
+    //   colors_u32: new SharedArrayBuffer(SimulationConstants.maxCells * 4),
+    //   nextCell_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2)
+    // },
+    // crittersData: {
+    //   firstCellIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
+    //   genomeIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
+    //   energy_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
+    //   orientation_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
+    // }
   };
 
   started = false;
