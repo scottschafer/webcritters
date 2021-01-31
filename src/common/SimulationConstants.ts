@@ -1,7 +1,7 @@
 export class SimulationConstants {
   static readonly minSpeed = 0;
-  static readonly maxSpeed = 10;
-  static readonly initialSpeed = 10; //8;
+  static readonly maxSpeed = 11;
+  static readonly initialSpeed = 11;
   static readonly worldDim = 256;
   static readonly totalPixels = SimulationConstants.worldDim * SimulationConstants.worldDim;
 

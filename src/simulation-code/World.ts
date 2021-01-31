@@ -1,12 +1,13 @@
+import { settings } from 'cluster';
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldSummary } from '../common/WorldSummary';
-import { Colors } from './Colors';
+import { ColorBlack, ColorGreen, ColorGray } from './Colors';
 import { Critter } from './Critter';
-import { cellLengthFromGenome, MoveAndEatGenome, PhotosynthesizeGenome, reproduceGenome } from './Genome';
+import { cellLengthFromGenome, GenomeCode, MoveAndEatGenome, PhotosynthesizeGenome, reproduceGenome } from './Genome';
 import { genomeRepository } from './GenomeRepository';
 import { Globals } from './Globals';
-import { Orientation } from './Orientation';
+import { makePoint, Orientation } from './Orientation';
 import { Settings } from './Settings';
 
 export class World {
@@ -33,6 +34,10 @@ export class World {
     this.reset();
   }
 
+  updateSettings(settings: Settings) {
+    this.settings = settings;
+  }
+
   getSummary(maxCritters = 10): WorldSummary {
     const result = {
       totalCritters: 0,
@@ -57,7 +62,11 @@ export class World {
       ++iCritter;
     }
 
-    const arrayGenomeAndCounts = Object.keys(genomeCount).map(genome => ({ genome, count: genomeCount[genome], color: 0 }));
+    const arrayGenomeAndCounts = Object.keys(genomeCount).map(genome => ({
+      genome,
+      count: genomeCount[genome],
+      color: genomeRepository.indexToColor[genomeRepository.genomeToIndex[genome]]
+    }));
     arrayGenomeAndCounts.sort((a, b) => (b.count - a.count));
 
     result.topGenomes = arrayGenomeAndCounts.slice(0, maxCritters - 1);
@@ -71,11 +80,15 @@ export class World {
     }
 
     // clear board
-    const black = Colors[0];
     const pixelArray = Globals.pixelArray;
     for (let i = 0; i < pixelArray.length; i++) {
-      pixelArray[i] = black;
+      pixelArray[i] = ColorBlack;
     }
+
+    // for (let i = 64; i < 192; i++) {
+    //   pixelArray[makePoint(i, i)] = ColorGray;
+    //   pixelArray[makePoint(256 - i, i)] = ColorGray;
+    // }
 
     // reset critters arrays
     this.numCritters = 0;
@@ -90,10 +103,12 @@ export class World {
     // spawn some critters;
     for (let i = 0; i < SimulationConstants.maxCritters / 10; i++) { // SimulationConstants.maxCritters / 10; i++) {
       const pos = this.findEmptyPos();
-      if (i === 0) {
-        this.spawn(MoveAndEatGenome, pos);
+      if (i === -1) {
+        this.spawn(GenomeCode.TestSeeFood + GenomeCode.IfCondition
+          + GenomeCode.MoveAndEat + GenomeCode.IfNotCondition + GenomeCode.TurnLeft
+          , pos);
       } else {
-        this.spawn(PhotosynthesizeGenome, pos);// pos.x, pos.y);
+        this.spawn(PhotosynthesizeGenome, pos).energy = Math.random() * this.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
       }
     }
   }
@@ -112,13 +127,13 @@ export class World {
           this.kill(iCritter);
         }
         else if (critter.canSpawn()) {
-          const tailPoint = critter.cellPositions[critter.length - 1];
+          const tailPoint = critter.lastTailPoint; // .cellPositions[critter.length - 1];
 
           let newPos = this.findEmptyPos(tailPoint);
           if (newPos) {
             const currentGenome = genomeRepository.indexToGenome[critter.genomeIndex];
             const genome = reproduceGenome(currentGenome, this.settings);
-            const cellLength = cellLengthFromGenome(genome);
+            const cellLength = cellLengthFromGenome(genome, this.settings);
             if (cellLength) {
               if (genome !== currentGenome) {
                 genomeRepository.registerGenome(genome, critter.genomeIndex);
@@ -128,8 +143,12 @@ export class World {
               if (newCritter) {
                 newCritter.energy = critter.energy / 2;
                 critter.energy /= 2;
+                newCritter.sleepCount = 5;
+                newCritter.orientation = critter.orientation;
               }
             }
+          } else {
+            critter.energy = -10000;// *= .8;
           }
         }
         ++i;
@@ -139,9 +158,45 @@ export class World {
 
     ++this.turn;
 
+    if (!this.numCritters) {
+      this.spawn(PhotosynthesizeGenome, this.findEmptyPos());// pos.x, pos.y);
+    }
+
+
+
+    if (!(this.turn % 100)) {
+
+      this.addFood();
+      // this.spawnPlantFromFood();
+    }
     return this.turn;
   }
 
+  addFood() {
+    let numFood = 32;
+    for (let i = 0; i < 100; i++) {
+      let point = Math.floor(Math.random() * 65536);
+      if (Globals.pixelArray[point] === ColorBlack) {
+        Globals.pixelArray[point] = ColorGreen;
+        if (! --numFood) {
+          return;
+        }
+      }
+    }
+  }
+
+  spawnPlantFromFood() {
+    // return;
+    let start = Math.floor(Math.random() * 65536);
+    for (let i = 0; i < 65555; i++) {
+      let point = (start + i) & 0xffff;
+      if (Globals.pixelArray[point] === ColorGreen && !Globals.pointToCritterIndex[point]) {
+        Globals.pixelArray[point] = ColorBlack;
+        this.spawn('P', point);
+        break;
+      }
+    }
+  }
   getCritterAtPos(point: number) {
     let critterIndex = Globals.pointToCritterIndex[point];
     if (critterIndex) {
@@ -154,6 +209,9 @@ export class World {
 
     if (point !== undefined) {
 
+      if (Globals.pixelArray[point] === ColorBlack) {
+        return point;
+      }
       let testArray = Orientation.deltasWithDiagonals;
       if (Math.random() < .5) {
         testArray = testArray.reverse();
@@ -163,7 +221,7 @@ export class World {
         const delta = testArray[iTest];
         const newPoint = (point + delta) & 0xffff;
         let pixel = Globals.pixelArray[newPoint];
-        if (pixel === Colors[0]) {
+        if (pixel === ColorBlack) {
           return newPoint;
 
         }
@@ -171,7 +229,7 @@ export class World {
       return undefined;
     }
 
-    const black = Colors[0];
+    const black = ColorBlack;
     while (true) {
       let x = Math.floor(Math.random() * 256);
       let y = Math.floor(Math.random() * 256);
@@ -208,13 +266,20 @@ export class World {
       this.setPixel(point, critter.color, critterIndex);
       ++this.numCritters;
     }
+    if (result) {
+      result.energy = result.spawnEnergy / 2;
+    }
+
     return result;
   }
 
   kill(iCritter: number) {
     const critter = this.critters[iCritter];
+    const genome = genomeRepository.indexToGenome[critter.genomeIndex];
+
+    let color = (critter.photosynthesizing || critter.energy <= -100) ? ColorBlack : ColorGreen;
     for (let i = 0; i < critter.length; i++) {
-      this.setPixel(critter.cellPositions[i], Colors[0]);
+      this.setPixel(critter.cellPositions[i], color);
     }
     critter.genomeIndex = -1;
     this.emptyCritterSlots[++this.emptyCritterSlotIndex] = iCritter;

@@ -15,3 +15,7 @@ export function takeTurn() {
 export function getSummary() {
   return gWorld.getSummary();
 }
+
+export function updateSettings(settings: Settings) {
+  gWorld.updateSettings(settings);
+}

@@ -1,6 +1,6 @@
 import { SimulationConfig } from './common/SimulationConfig';
 
-import { action, computed, makeObservable, observable, runInAction, toJS } from 'mobx';
+import { action, computed, isObservable, makeObservable, observable, runInAction, toJS } from 'mobx';
 import { wrap, releaseProxy } from "comlink";
 import { worker } from 'cluster';
 import { SimulationConstants } from './common/SimulationConstants';
@@ -20,8 +20,11 @@ const workerAPI = (() => {
 
 class SimulationStore {
   sharedArrayBufferUint8Array: Uint8Array;
-  @observable settings: Settings = new Settings();
+  @observable.ref settings = new Settings();
   @observable.ref summary: WorldSummary = null;
+
+  lastTurnTime = 0;
+  runningAtFullSpeed = false;
 
   sharedData: SharedData = {
     canvasBuffer: new SharedArrayBuffer(SimulationConstants.worldDim * SimulationConstants.worldDim * 4),
@@ -41,41 +44,31 @@ class SimulationStore {
 
   started = false;
 
-  @observable speed: number = SimulationConstants.initialSpeed;
   @observable turn: number = 0;
   @observable config: SimulationConfig = {
     width: 256,
     height: 256
   }
 
-  @action.bound setSpeed(value: number | { target: { value: number } }) {
-    let oldSpeed = this.speed;
-    if (typeof value === 'object') {
-      value = value.target.value;
-    }
-    this.speed = value;
-
-    if (!oldSpeed && this.speed) {
-      this.takeTurn();
-    }
+  @action.bound setSettings(value: Settings) {
+    this.settings = value;
+    workerAPI.updateSettings(value);
   }
 
   @computed get delay() {
-    if (!this.speed) {
+    if (!this.settings.speed) {
       return -1;
     }
-    let delay = (SimulationConstants.maxSpeed - this.speed) / SimulationConstants.maxSpeed * 50;
-    return delay * delay;
+    let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
+    return delay * delay * 100;
   }
 
-
-  // private workerApi: any; //SimulationWorker;
 
   constructor() {
     makeObservable(this);
     this.sharedArrayBufferUint8Array = new Uint8Array(this.sharedData.canvasBuffer);
 
-
+    console.log('isObservable(this.settings.lifespanPerCell) = ' + isObservable(this.settings.lifespanPerCell));
   }
 
   startSimulation() {
@@ -86,32 +79,59 @@ class SimulationStore {
     console.log('startSimulation');
     workerAPI.init(this.sharedData, toJS(this.settings));
 
-    this.takeTurn();
+    this.runTurnLoop();
   }
 
   @action setTurn(turn: number) {
     this.turn = turn;
   }
 
-  @action.bound takeTurn() {
+  @action setSummary(value: WorldSummary) {
+    this.summary = value;
+  }
+
+  takeTurn = () => {
     workerAPI.takeTurn().then(result => {
-      // console.log(`turn crank #${result}`);
       this.setTurn(result);
-      if (this.delay) {
-        if (this.delay > 0) {
-          setTimeout(this.takeTurn, this.delay);
-        }
-      } else {
-        this.takeTurn();
-      }
+      this.runTurnLoop();
 
       if (!(result % 100)) {
         workerAPI.getSummary().then(result => {
-          this.summary = result;
+          this.setSummary(result);
         });
       }
+
+      if (!this.delay) {
+        this.runningAtFullSpeed = true;
+        this.takeTurn();
+      } else {
+        this.runningAtFullSpeed = false;
+      }
     });
+
   }
+
+  runTurnLoop = () => {
+
+    window.setTimeout(this.runTurnLoop, 0);
+
+    if (!this.delay) {
+      if (!this.runningAtFullSpeed) {
+        this.runningAtFullSpeed = true;
+        this.takeTurn();
+      }
+    } else {
+
+      if (this.delay > 0) {
+        const curTime = new Date().getTime();
+        if ((curTime - this.lastTurnTime) >= this.delay) {
+          this.lastTurnTime = curTime;
+          this.takeTurn();
+        }
+      }
+    }
+  }
+
 };
 
 export const simulationStore = new SimulationStore;

@@ -6,24 +6,56 @@ export enum GenomeCode {
   MoveAndEat = 'M',
   Move = 'm',
   Sleep = 'Z',
+  Hypermode = 'H',
+
   TurnLeft = '<',
   TurnRight = '>',
   OrientUp = 'U',
   OrientDown = 'D',
   OrientRight = 'R',
   OrientLeft = 'L',
+  SetTimer1 = 'a',
+  SetTimer2 = 'b',
+
+  TestSeeFood = '0',
+  TestBlocked = '1',
+  TestHighEnergy = '2',
+  TestLowEnergy = '3',
+  TestTimer1 = '4',
+  TestTimer2 = '5',
+
+  IfCondition = '?',
+  IfNotCondition = '!',
+
+  Restart = '*'
 };
 
-export enum GenomeConditions {
-  ConditionAlways = '0',
-  ConditionFacingFood = '1',
-  ConditionNotFacingFood = '2',
-  ConditionBlocked = '3',
-  ConditionNotBlocked = '4',
+export const getCyclesPerCode = (code: GenomeCode) => {
+  switch (code) {
+    case GenomeCode.IfCondition:
+    case GenomeCode.IfNotCondition:
+      return 0;
+
+    case GenomeCode.TestSeeFood:
+    case GenomeCode.TestBlocked:
+    case GenomeCode.TestHighEnergy:
+    case GenomeCode.TestLowEnergy:
+    case GenomeCode.TestTimer1:
+    case GenomeCode.TestTimer2:
+      return 1;
+
+    case GenomeCode.Move:
+    case GenomeCode.MoveAndEat:
+    case GenomeCode.Photosynthesize:
+    case GenomeCode.Sleep:
+      return 7;
+  }
+  return 1;
+
 };
 
-export const PhotosynthesizeGenome = GenomeConditions.ConditionAlways + GenomeCode.Photosynthesize;
-export const MoveAndEatGenome = GenomeConditions.ConditionAlways + GenomeCode.MoveAndEat;
+export const PhotosynthesizeGenome = GenomeCode.Photosynthesize;
+export const MoveAndEatGenome = GenomeCode.MoveAndEat;
 
 enum MutationType {
   insert,
@@ -32,10 +64,8 @@ enum MutationType {
 };
 
 function getRandomCode() {
-  const conditions = Object.values(GenomeConditions);
   const codes = Object.values(GenomeCode);
-  return conditions[Math.floor(Math.random() * conditions.length)]
-    + codes[Math.floor(Math.random() * codes.length)];
+  return codes[Math.floor(Math.random() * codes.length)];
 };
 
 export function reproduceGenome(genome: string, settings: Settings) {
@@ -52,7 +82,7 @@ export function reproduceGenome(genome: string, settings: Settings) {
       if (genome.length >= SimulationConstants.maxGenomeLength) {
         return genome;
       }
-      const position = Math.floor(Math.random() * (genome.length / 2 + 1)) * 2;
+      const position = Math.floor(Math.random() * genome.length + 1);
       const c = getRandomCode();
       if (position === 0) {
         return c + genome;
@@ -65,25 +95,25 @@ export function reproduceGenome(genome: string, settings: Settings) {
 
     case MutationType.delete:
       if (genome.length > 2) {
-        const position = 2 * Math.floor(genome.length * Math.random() / 2);
+        const position = Math.floor(Math.random() * genome.length);
         if (position === 0) {
-          return genome.substr(2);
-        } else if (position === (genome.length - 2)) {
-          return genome.substr(0, genome.length - 2);
+          return genome.substr(1);
+        } else if (position === (genome.length - 1)) {
+          return genome.substr(0, genome.length - 1);
         } else {
-          return genome.substr(0, position) + genome.substr(position + 2);
+          return genome.substr(0, position) + genome.substr(position + 1);
         }
       }
       break;
     case MutationType.modify: {
-      const position = 2 * Math.floor(genome.length * Math.random() / 2);
+      const position = Math.floor(Math.random() * genome.length);
       const c = getRandomCode();
       if (position === 0) {
-        return c + genome.substr(2);
-      } else if (position === (genome.length - 2)) {
-        return genome.substr(0, genome.length - 2) + c;
+        return c + genome.substr(1);
+      } else if (position === (genome.length - 1)) {
+        return genome.substr(0, genome.length - 1) + c;
       } else {
-        return genome.substr(0, position) + c + genome.substr(position + 2);
+        return genome.substr(0, position) + c + genome.substr(position + 1);
       }
     }
   }
@@ -91,10 +121,11 @@ export function reproduceGenome(genome: string, settings: Settings) {
 
 }
 
-export function cellLengthFromGenome(genome: string) {
+export function cellLengthFromGenome(genome: string, settings: Settings) {
+  return Math.min(settings.limitCellLength, genome.length);
   let result = 0;
 
-  for (let i = 1; i < genome.length; i += 2) {
+  for (let i = 0; i < genome.length; ++i) {
     switch (genome[i]) {
       case GenomeCode.Move:
       case GenomeCode.MoveAndEat:
@@ -104,5 +135,5 @@ export function cellLengthFromGenome(genome: string) {
     }
   }
 
-  return result;
+  return Math.min(1, result);
 }
