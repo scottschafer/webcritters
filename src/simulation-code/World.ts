@@ -1,24 +1,25 @@
-import { settings } from 'cluster';
+import { debug } from 'webpack';
+import { FollowingDetails } from '../common/FollowingDetails';
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
+import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
 import { ColorBlack, ColorGreen, ColorGray } from './Colors';
 import { Critter } from './Critter';
 import { cellLengthFromGenome, GenomeCode, MoveAndEatGenome, PhotosynthesizeGenome, reproduceGenome } from './Genome';
-import { genomeRepository } from './GenomeRepository';
+import { genomeStore } from './GenomeStore';
 import { Globals } from './Globals';
-import { makePoint, Orientation } from './Orientation';
-import { Settings } from './Settings';
+import { decodePoint, makePoint, Orientation } from './Orientation';
+import { SimulationSettings } from './SimulationSettings';
 
 export class World {
-  turn = 0;
-  numCritters = 0;
-  settings: Settings;
 
   critters: Array<Critter> = new Array<Critter>(SimulationConstants.maxCritters + 1);
 
   emptyCritterSlots: Array<number> = new Array<number>(SimulationConstants.maxCritters);
   emptyCritterSlotIndex: number = SimulationConstants.maxCritters - 1;
+
+  takingTurn = false;
 
   constructor() {
 
@@ -28,53 +29,127 @@ export class World {
     Globals.critters = this.critters;
   }
 
-  init(sharedData: SharedData, settings: Settings) {
+  init(sharedData: SharedData, settings: SimulationSettings) {
     Globals.init(sharedData);
-    this.settings = settings;
+    Globals.settings = settings;
     this.reset();
   }
 
-  updateSettings(settings: Settings) {
-    this.settings = settings;
+  updateSettings(settings: SimulationSettings) {
+    const barriersChanged = (settings.barriers !== Globals.settings.barriers);
+    Globals.settings = settings;
+    if (barriersChanged) {
+      this.updateBarriers();
+    }
   }
 
-  getSummary(maxCritters = 10): WorldSummary {
+  getSummary(maxCritters = 20): WorldSummary {
     const result = {
       totalCritters: 0,
       totalFood: 0,
       topGenomes: []
     };
 
-    let genomeCount: { [genome: string]: number } = {};
-    const numCritters = this.numCritters;
-    let iCritter = 1;
-    for (let i = 0; i < numCritters;) {
-      const critter = this.critters[iCritter];
-      if (critter.genomeIndex > 0) {
-        const genome = genomeRepository.indexToGenome[critter.genomeIndex];
-        if (!genomeCount[genome]) {
-          genomeCount[genome] = 1;
-        } else {
-          ++genomeCount[genome];
-        }
-        ++i;
+    try {
+      const sortedGenomes = Object.values(genomeStore.genomeInfo)
+        .sort((a, b) => (b.count - a.count));
+      const total = sortedGenomes
+        .map(v => v.count)
+        .reduce((accumulator, currentValue) => accumulator + currentValue);
+
+      if (total !== Globals.numCritters) {
+        debugger;
       }
-      ++iCritter;
+      result.totalCritters = Globals.numCritters; //total;
+      result.topGenomes = sortedGenomes.slice(0, maxCritters - 1);
+    } catch (e) {
+      debugger;
     }
-
-    const arrayGenomeAndCounts = Object.keys(genomeCount).map(genome => ({
-      genome,
-      count: genomeCount[genome],
-      color: genomeRepository.indexToColor[genomeRepository.genomeToIndex[genome]]
-    }));
-    arrayGenomeAndCounts.sort((a, b) => (b.count - a.count));
-
-    result.topGenomes = arrayGenomeAndCounts.slice(0, maxCritters - 1);
     return result;
   }
 
+  getDetail(follow: FollowingDetails, dimension = 32): WorldDetails {
+    const result = {
+      x: 0,
+      y: 0,
+      critters: {} as { [index: number]: Critter },
+      dots: []
+    };
+
+    let x = follow.x;
+    let y = follow.y;
+    // if (follow && typeof follow === 'object') {
+    //   x = follow.x;
+    //   y = follow.y;
+    // } else {
+    //   if (!follow) {
+    //     if (!Globals.numCritters) {
+    //       return result;
+    //     }
+
+    //     follow = 1;
+    //     let len = 0;
+    //     for (let i = 1; i < Globals.numCritters; i++) {
+    //       if (this.critters[i].genomeInfo) {
+    //         if (this.critters[i].length > len) {
+    //           follow = i;
+    //           len = this.critters[i].length;
+    //         }
+    //       }
+    //     }
+    //   }
+    //   const headPoint = this.critters[follow as number].cellPositions[0];
+    //   const headPointXY = decodePoint(headPoint);
+    //   x = Math.min(255 - dimension, Math.max(0, headPointXY.x - dimension / 2));
+    //   y = Math.min(255 - dimension, Math.max(0, headPointXY.y - dimension / 2));
+    // }
+
+    result.x = x;
+    result.y = y;
+    for (let ix = x; ix < (x + dimension); ix++) {
+      for (let iy = y; iy < (y + dimension); iy++) {
+        const pt = makePoint(ix, iy);
+        const critter = this.getCritterAtPos(pt);
+        if (critter) {
+          result.critters[critter.critterIndex] = critter;
+        } else {
+          if (Globals.pixelArray[pt] !== ColorBlack) {
+            result.dots.push({ x: ix, y: iy, color: Globals.pixelArray[pt] });
+          }
+        }
+      }
+    }
+
+    return result;
+  }
+
+  updateBarriers() {
+    if (!Globals.settings.barriers) {
+      for (let i = 0; i < Globals.pixelArray.length; i++) {
+        if (Globals.pixelArray[i] === ColorGray) {
+          Globals.setPixel(i, ColorBlack);
+        }
+      }
+    } else {
+      const setBarrierPoint = (point: number) => {
+        const critter = this.getCritterAtPos(point);
+        if (critter) {
+          this.kill(critter.critterIndex, false);
+        }
+        Globals.setPixel(point, ColorGray);
+
+        // Globals.pixelArray[point] = ColorGray;
+      }
+
+      for (let i = 64; i < 192; i++) {
+        setBarrierPoint(makePoint(i, i));
+        setBarrierPoint(makePoint(256 - i, i));
+      }
+    }
+  }
+
   reset() {
-    this.turn = 0;
+    Globals.turn = 0;
     for (let i = 0; i < Globals.pointToCritterIndex.length; i++) {
       Globals.pointToCritterIndex[i] = 0;
     }
@@ -84,14 +159,11 @@ export class World {
     for (let i = 0; i < pixelArray.length; i++) {
       pixelArray[i] = ColorBlack;
     }
+    this.updateBarriers();
 
-    // for (let i = 64; i < 192; i++) {
-    //   pixelArray[makePoint(i, i)] = ColorGray;
-    //   pixelArray[makePoint(256 - i, i)] = ColorGray;
-    // }
 
     // reset critters arrays
-    this.numCritters = 0;
+    Globals.numCritters = 0;
 
     // reset empty slot indices
     this.emptyCritterSlots = [];
@@ -103,52 +175,50 @@ export class World {
     // spawn some critters;
     for (let i = 0; i < SimulationConstants.maxCritters / 10; i++) { // SimulationConstants.maxCritters / 10; i++) {
       const pos = this.findEmptyPos();
-      if (i === -1) {
-        this.spawn(GenomeCode.TestSeeFood + GenomeCode.IfCondition
-          + GenomeCode.MoveAndEat + GenomeCode.IfNotCondition + GenomeCode.TurnLeft
-          , pos);
+      if (i < 50 && SimulationConstants.insertEvolvedCritter) {
+        this.spawn(SimulationConstants.insertEvolvedCritter, pos);
       } else {
-        this.spawn(PhotosynthesizeGenome, pos).energy = Math.random() * this.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
+        this.spawn(PhotosynthesizeGenome, pos).energy = Math.random() * Globals.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
       }
     }
   }
 
   takeTurn() {
+    if (this.takingTurn) {
+      debugger;
+    }
+    this.takingTurn = true;
     let iCritter = 1;
-    const numCritters = this.numCritters;
+    const numCritters = Globals.numCritters;
     for (let i = 0; i < numCritters;) {
       const critter = this.critters[iCritter];
-      if (critter.genomeIndex > 0) {
+      if (critter.genomeInfo) {
 
         const critter = this.critters[iCritter];
-        critter.takeTurn(this.settings);
+        critter.takeTurn();
 
-        if (critter.isDead) {
+        if (critter.isDead && (SimulationConstants.allowDeathBirth || critter.wasEaten)) { //  && (critter.genomeInfo.genome === GenomeCode.Photosynthesize || !SimulationConstants.testMode)) {
           this.kill(iCritter);
         }
-        else if (critter.canSpawn()) {
+        else if (critter.canSpawn() && SimulationConstants.allowDeathBirth) {
           const tailPoint = critter.lastTailPoint; // .cellPositions[critter.length - 1];
 
+          critter.forceSpawn = false;
           let newPos = this.findEmptyPos(tailPoint);
           if (newPos) {
-            const currentGenome = genomeRepository.indexToGenome[critter.genomeIndex];
-            const genome = reproduceGenome(currentGenome, this.settings);
-            const cellLength = cellLengthFromGenome(genome, this.settings);
-            if (cellLength) {
-              if (genome !== currentGenome) {
-                genomeRepository.registerGenome(genome, critter.genomeIndex);
-              }
-
-              const newCritter = this.spawn(genome, newPos);
-              if (newCritter) {
-                newCritter.energy = critter.energy / 2;
-                critter.energy /= 2;
-                newCritter.sleepCount = 5;
-                newCritter.orientation = critter.orientation;
-              }
+            const newCritter = this.spawn(critter.genomeInfo.genome, newPos);
+            if (newCritter) {
+              newCritter.energy = critter.energy / 2;
+              critter.energy /= 2;
+              ++critter.spawnedCount;
+              newCritter.sleepCount = Globals.settings.sleepAfterSpawnCount;
+              // newCritter.orientation = critter.orientation;
             }
           } else {
-            critter.energy = -10000;// *= .8;
+            critter.energy = critter.spawnEnergy / 2;
+            // critter.energy /= 2; //= -10000;// *= .8;
+            // critter.energy = -10000;// *= .8;
+            // critter.setEaten();
           }
         }
         ++i;
@@ -156,30 +226,56 @@ export class World {
       ++iCritter;
     }
 
-    ++this.turn;
+    ++Globals.turn;
 
-    if (!this.numCritters) {
+    if (!Globals.numCritters) {
       this.spawn(PhotosynthesizeGenome, this.findEmptyPos());// pos.x, pos.y);
     }
 
 
 
-    if (!(this.turn % 100)) {
+    if (!(Globals.turn % 100)) {
 
       this.addFood();
       // this.spawnPlantFromFood();
     }
-    return this.turn;
+    this.takingTurn = false;
+
+    // for (let i = 0; i < Globals.pointToCritterIndex.length; i++) {
+    //   const index = Globals.pointToCritterIndex[i];
+    //   if (index) {
+    //     const critter = this.critters[index];
+    //     if (critter.genomeInfo) {
+    //       let found = false;
+    //       for (let j = 0; j < critter.length; j++) {
+    //         if (critter.cellPositions[j] === i) {
+    //           found = true;
+    //           break;
+    //         }
+    //       }
+    //       if (!found) {
+    //         debugger;
+    //       }
+    //     }
+    //   }
+    // }
+
+
+    return Globals.turn;
   }
 
   addFood() {
-    let numFood = 32;
-    for (let i = 0; i < 100; i++) {
-      let point = Math.floor(Math.random() * 65536);
-      if (Globals.pixelArray[point] === ColorBlack) {
-        Globals.pixelArray[point] = ColorGreen;
-        if (! --numFood) {
-          return;
+    let numFood = Globals.settings.addFoodCount;
+    while (numFood) {
+      for (let i = 0; i < 100; i++) {
+        let point = Math.floor(Math.random() * 65536);
+        if (Globals.pixelArray[point] === ColorBlack) {
+          if (Globals.pointToCritterIndex[point]) {
+            debugger;
+          }
+          Globals.pixelArray[point] = ColorGreen;
+          --numFood;
+          break;
         }
       }
     }
@@ -197,10 +293,12 @@ export class World {
       }
     }
   }
+
   getCritterAtPos(point: number) {
     let critterIndex = Globals.pointToCritterIndex[point];
     if (critterIndex) {
-      return this.critters[critterIndex];
+      const critter = this.critters[critterIndex];
+      return (critter && critter.genomeInfo) ? critter : null;
     }
     return null;
   }
@@ -221,9 +319,8 @@ export class World {
         const delta = testArray[iTest];
         const newPoint = (point + delta) & 0xffff;
         let pixel = Globals.pixelArray[newPoint];
-        if (pixel === ColorBlack) {
+        if (pixel === ColorBlack || (pixel === ColorGreen && !Globals.pointToCritterIndex[newPoint])) {
           return newPoint;
-
         }
       }
       return undefined;
@@ -242,29 +339,36 @@ export class World {
     // return result;
   }
 
-  setPixel(point: number, value: number, critterIndex = 0) {
-    Globals.pixelArray[point] = value;
-    Globals.pointToCritterIndex[point] = critterIndex;
-  }
+  // setPixel(point: number, value: number, critterIndex = 0) {
+  //   Globals.pixelArray[point] = value;
+  //   if (critterIndex === undefined) {
+  //     debugger;
+  //   }
+  //   Globals.pointToCritterIndex[point] = critterIndex;
+  // }
 
 
-  spawn(genome: string, point: number) {
+  spawn(genome: string, point: number, allowMutation = true) {
     let result: Critter = null;
     const initialEnergy = 100;
 
-    const ng = reproduceGenome(genome, this.settings);
+    const parentGenome = allowMutation ? genome : null;
+    if (allowMutation) {
+      genome = reproduceGenome(genome);
+    }
 
-    if (this.emptyCritterSlotIndex >= 0) {
+    if (cellLengthFromGenome(genome) && this.emptyCritterSlotIndex >= 0) {
+      genomeStore.registerBirth(genome, parentGenome);
+
       const critterIndex = this.emptyCritterSlots[this.emptyCritterSlotIndex--];
 
       const critter = this.critters[critterIndex];
-      const genomeIndex = genomeRepository.registerGenome(genome);
 
-      critter.init(this.settings, genomeIndex, point);
+      critter.init(genome, point);
       result = critter;
 
-      this.setPixel(point, critter.color, critterIndex);
-      ++this.numCritters;
+      Globals.setPixel(point, critter.color, critterIndex);
+      // ++Globals.numCritters;
     }
     if (result) {
       result.energy = result.spawnEnergy / 2;
@@ -273,17 +377,18 @@ export class World {
     return result;
   }
 
-  kill(iCritter: number) {
+  kill(iCritter: number, canTurnToFood = true) {
     const critter = this.critters[iCritter];
-    const genome = genomeRepository.indexToGenome[critter.genomeIndex];
+    genomeStore.registerDeath(critter.genomeInfo.genome);
 
-    let color = (critter.photosynthesizing || critter.energy <= -100) ? ColorBlack : ColorGreen;
-    for (let i = 0; i < critter.length; i++) {
-      this.setPixel(critter.cellPositions[i], color);
+    if (canTurnToFood) {
+      let color = (critter.photosynthesizing || critter.wasEaten) ? ColorBlack : ColorGreen;
+      for (let i = 0; i < critter.length; i++) {
+        Globals.setPixel(critter.cellPositions[i], color);
+      }
     }
-    critter.genomeIndex = -1;
+    critter.genomeInfo = null;
     this.emptyCritterSlots[++this.emptyCritterSlotIndex] = iCritter;
-    --this.numCritters;
   }
 
 }

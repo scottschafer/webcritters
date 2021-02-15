@@ -2,12 +2,21 @@
 export const makePoint = (x: number, y: number) => {
   return (x + y * 256) & 0xffff;
 }
+
+export const decodePoint = (point: number) => {
+  return {
+    x: (point & 0xff),
+    y: (point / 256) & 0xff
+  }
+}
+
 export class Orientation {
   static readonly deltas = [
-    makePoint(-1, 0),
     makePoint(0, -1),
     makePoint(1, 0),
-    makePoint(0, 1)];
+    makePoint(0, 1),
+    makePoint(-1, 0)
+  ];
 
   static readonly deltasWithDiagonals = [
     makePoint(-1, 0),

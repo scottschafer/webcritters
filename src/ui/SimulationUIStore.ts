@@ -1,30 +1,26 @@
-import { SimulationConfig } from './common/SimulationConfig';
+import { action, computed, makeObservable, observable, toJS } from 'mobx';
+import { FollowingDetails } from '../common/FollowingDetails';
+import { SharedData } from '../common/SharedData';
+import { SimulationConfig } from '../common/SimulationConfig';
+import { SimulationConstants } from '../common/SimulationConstants';
+import { WorldDetails } from '../common/WorldDetails';
+import { WorldSummary } from '../common/WorldSummary';
+import { SimulationSettings } from '../simulation-code/SimulationSettings';
+import { workerAPI } from '../simulation-worker/workerAPI';
 
-import { action, computed, isObservable, makeObservable, observable, runInAction, toJS } from 'mobx';
-import { wrap, releaseProxy } from "comlink";
-import { worker } from 'cluster';
-import { SimulationConstants } from './common/SimulationConstants';
-import { CellsData } from './common/CellsData';
-import { SharedData } from './common/SharedData';
-import { Settings } from './simulation-code/Settings';
-import { WorldSummary } from './common/WorldSummary';
 
-const workerAPI = (() => {
-  const worker = new Worker("./simulation-worker", {
-    name: "simulation-worker",
-    type: "module"
-  });
-  const workerApi = wrap<import("./simulation-worker").SimulationWorker>(worker);
-  return workerApi;
-})();
-
-class SimulationStore {
+class SimulationUIStore {
   sharedArrayBufferUint8Array: Uint8Array;
-  @observable.ref settings = new Settings();
+  @observable.ref settings = new SimulationSettings();
   @observable.ref summary: WorldSummary = null;
+  @observable.ref details: WorldDetails = null;
+
+  @observable.ref following: FollowingDetails = new FollowingDetails();
 
   lastTurnTime = 0;
+  lastGetDetailTime = 0;
   runningAtFullSpeed = false;
+  isTakingTurn = false;
 
   sharedData: SharedData = {
     canvasBuffer: new SharedArrayBuffer(SimulationConstants.worldDim * SimulationConstants.worldDim * 4),
@@ -50,25 +46,31 @@ class SimulationStore {
     height: 256
   }
 
-  @action.bound setSettings(value: Settings) {
+  @action.bound setSettings(value: SimulationSettings) {
     this.settings = value;
+
     workerAPI.updateSettings(value);
   }
 
   @computed get delay() {
+    let result = 0;
     if (!this.settings.speed) {
-      return -1;
+      result = -1;
+    } else {
+      let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
+      result = delay * delay * 100;
     }
-    let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
-    return delay * delay * 100;
+
+    if (!SimulationConstants.useWorker) {
+      result = Math.max(50, result);
+    }
+    return result;
   }
 
 
   constructor() {
     makeObservable(this);
     this.sharedArrayBufferUint8Array = new Uint8Array(this.sharedData.canvasBuffer);
-
-    console.log('isObservable(this.settings.lifespanPerCell) = ' + isObservable(this.settings.lifespanPerCell));
   }
 
   startSimulation() {
@@ -90,14 +92,29 @@ class SimulationStore {
     this.summary = value;
   }
 
+  @action setDetail(value: WorldDetails) {
+    this.details = value;
+  }
+
   takeTurn = () => {
+
+    this.isTakingTurn = true;
     workerAPI.takeTurn().then(result => {
+      this.isTakingTurn = false;
       this.setTurn(result);
       this.runTurnLoop();
 
-      if (!(result % 100)) {
+      if (this.settings.showPreview && !(result % 100)) {
         workerAPI.getSummary().then(result => {
           this.setSummary(result);
+        });
+      }
+
+      const currentTime = new Date().getTime();
+      if (this.settings.showPreview && (currentTime - this.lastGetDetailTime) > (1000 / 20)) {
+        this.lastGetDetailTime = currentTime;
+        workerAPI.getDetail(this.following, 32).then(result => {
+          this.setDetail(result);
         });
       }
 
@@ -115,6 +132,9 @@ class SimulationStore {
 
     window.setTimeout(this.runTurnLoop, 0);
 
+    if (this.isTakingTurn) {
+      return;
+    }
     if (!this.delay) {
       if (!this.runningAtFullSpeed) {
         this.runningAtFullSpeed = true;
@@ -134,4 +154,4 @@ class SimulationStore {
 
 };
 
-export const simulationStore = new SimulationStore;
+export const simulationStore = new SimulationUIStore;

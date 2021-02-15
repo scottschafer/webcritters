@@ -6,10 +6,12 @@ import './ValuesEditorPanel.scss';
 
 export type ValuesEditorPanelFieldDefs = Array<{
   label: string;
+  suffix?: string;
   fieldName: string;
   type: 'range' | 'boolean' | 'options';
   minValue?: number;
   maxValue?: number;
+  step?: number;
   options?: Array<{ label: string, value: (string | number | boolean) }>;
 }>;;
 
@@ -33,8 +35,13 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
       if (field) {
         if (field.type === 'range') {
           newValue[fieldName] = evt.target.valueAsNumber;
-        } else if (field.type === 'boolean') {
-          debugger;
+        } else if (field.type === 'boolean' || field.type === 'options') {
+          let selectedValue = evt.target.value;
+          (field.options || booleanOptions).forEach(option => {
+            if (selectedValue === ('' + option.value)) {
+              newValue[fieldName] = option.value;
+            }
+          });
         }
         this.props.onChange(newValue);
       }
@@ -55,24 +62,30 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
                   min={field.minValue || 0}
                   max={field.maxValue || 100}
                   value={this.props.data[field.fieldName]}
+                  step={field.step || 1}
                   onChange={this.onChangeValue} />
-                {this.props.data[field.fieldName]}
+                <span className='field-value'>
+                  {this.props.data[field.fieldName]}
+                  {field.suffix}
+                </span>
               </>
             }
 
             {(field.type === 'boolean' || (field.type === 'options')) &&
-              (field.options || booleanOptions).map(option =>
+              <div className='radio-group'>
+                {(field.options || booleanOptions).map(option =>
 
-                <label key={option.label}>
+                  <label key={option.label}>
 
-                  <input type="radio"
-                    data-fieldname={field.fieldName}
-                    value={'' + option.value}
-                    onChange={this.onChangeValue} />
-                  {option.label}
-                </label>
-
-              )
+                    <input type="radio"
+                      data-fieldname={field.fieldName}
+                      value={('' + option.value)}
+                      checked={this.props.data[field.fieldName] === option.value}
+                      onChange={this.onChangeValue} />
+                    {option.label}
+                  </label>
+                )}
+              </div>
             }
           </Col>)
         }

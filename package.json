@@ -51,6 +51,7 @@
     "mini-css-extract-plugin": "0.11.3",
     "mobx": "^6.0.4",
     "mobx-react": "^7.0.5",
+    "node-sass": "4",
     "optimize-css-assets-webpack-plugin": "5.0.4",
     "pnp-webpack-plugin": "1.6.4",
     "postcss-flexbugs-fixes": "4.2.1",
@@ -62,7 +63,6 @@
     "react": "^17.0.1",
     "react-app-polyfill": "^2.0.0",
     "react-bootstrap": "^1.4.3",
-    "react-bootstrap-slider": "^3.0.0",
     "react-dev-utils": "^11.0.1",
     "react-dom": "^17.0.1",
     "react-refresh": "^0.8.3",
@@ -83,7 +83,7 @@
     "worker-plugin": "^5.0.0"
   },
   "scripts": {
-    "start": "PORT=3006 node scripts/start.js",
+    "start": "PORT=3005 node scripts/start.js  --no-cache",
     "build": "node scripts/build.js",
     "test": "node scripts/test.js"
   },

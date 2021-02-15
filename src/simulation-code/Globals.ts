@@ -1,6 +1,7 @@
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { Critter } from './Critter';
+import { SimulationSettings } from './SimulationSettings';
 
 export class Globals {
   static pixelArray: Uint32Array;
@@ -8,6 +9,9 @@ export class Globals {
   static cellPositions: Uint16Array;
 
   static critters: Array<Critter>;
+  static turn = 0;
+  static numCritters = 0;
+  static settings: SimulationSettings;
 
   static init(sharedData: SharedData) {
     const totalPixels = SimulationConstants.totalPixels;
@@ -18,6 +22,10 @@ export class Globals {
 
   static setPixel(point: number, color: number, critterIndex = 0) {
     Globals.pixelArray[point] = color;
+
+    if (Globals.pointToCritterIndex[point] && critterIndex && critterIndex !== Globals.pointToCritterIndex[point]) {
+      debugger;
+    }
     Globals.pointToCritterIndex[point] = critterIndex;
   }
 }

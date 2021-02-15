@@ -1,26 +1,30 @@
 import { SimulationConstants } from '../common/SimulationConstants';
 import { ColorBlack, ColorGreen } from './Colors';
-import { cellLengthFromGenome, GenomeCode, getCyclesPerCode } from './Genome';
-import { genomeRepository } from './GenomeRepository';
+import { cellLengthFromGenome, GenomeCode, GenomeCodeInfo, getCyclesPerCode } from './Genome';
+import { GenomeInfo, genomeStore } from './GenomeStore';
 import { Globals } from './Globals';
 import { Orientation } from './Orientation';
-import { Settings } from './Settings';
+import { SimulationSettings } from './SimulationSettings';
 
+const numConditions = 5;
 
 export class Critter {
-  genomeIndex: number = -1;
-  genome: string;
+  genomeInfo: GenomeInfo;
+  cellPositions = new Array<number>(SimulationConstants.maxCritterLength);
+  conditions = new Array<boolean>(numConditions);
   energy: number = -1;
   orientation: number;
   length: number;
   age: number;
   maxLifespan: number;
   spawnEnergy: number;
-  photosynthesizing: boolean = false;
+  photosynthesizing: number = 0;
   unfolded: boolean = false;
   color: number;
-  cellPositions = new Array<number>(SimulationConstants.maxCritterLength);
+  colorPhotosynthesizing: number;
+  conditionHead = 0;
   numPhotosynthesizeCells = 0;
+  forceSpawn = false;
 
   pc: number;
   hypermode: boolean;
@@ -30,22 +34,45 @@ export class Critter {
   sleepCount: number;
   blocked: boolean;
   lastTailPoint: number;
-
+  bitten: boolean;
+  spawnedCount: number;
+  turnDirection: number;
 
   constructor(public readonly critterIndex: number) {
+    for (let i = 0; i < SimulationConstants.maxCritterLength; i++) {
+      this.cellPositions[i] = 0;
+    }
+    for (let i = 0; i < numConditions; i++) {
+      this.conditions[i] = false;
+    }
   }
 
-  init(settings: Settings, genomeIndex: number, point: number) {
-    this.genomeIndex = genomeIndex;
-    this.genome = genomeRepository.indexToGenome[genomeIndex];
-    const length = this.length = cellLengthFromGenome(this.genome, settings);
+  init(genome: string, point: number) {
+    const { settings } = Globals;
+    Object.assign(this, {
+      pc: 0,
+      hypermode: false,
+      condition: false,
+      timer1: -1,
+      timer2: -1,
+      sleepCount: 0,
+      blocked: false,
+      photosynthesizing: 0,
+      bitten: false,
+      forceSpawn: false,
+      spawnedCount: 0,
+      turnDirection: 1,
+      conditionHead: 0
+    });
+    this.genomeInfo = genomeStore.genomeInfo[genome];
+
+    const length = this.length = cellLengthFromGenome(genome);
     this.unfolded = length === 1;
-    this.color = (length === 1 && this.genome[0] === GenomeCode.Photosynthesize) ? ColorGreen :
-      genomeRepository.indexToColor[genomeIndex];
+    this.color = this.genomeInfo.color;
 
     this.numPhotosynthesizeCells = 0;
-    for (let i = 0; i < this.genome.length; i++) {
-      if (this.genome[i] === GenomeCode.Photosynthesize) {
+    for (let i = 0; i < genome.length; i++) {
+      if (genome[i] === GenomeCode.Photosynthesize) {
         ++this.numPhotosynthesizeCells;
       }
     }
@@ -61,21 +88,38 @@ export class Critter {
       this.cellPositions[i] = point;
     }
     this.lastTailPoint = point;
-
-    Object.assign(this, {
-      pc: 0,
-      hypermode: false,
-      condition: false,
-      timer1: -1,
-      timer2: -1,
-      sleepCount: 0,
-      blocked: false,
-      photosynthesizing: false,
-    });
   }
 
-  takeTurn(settings: Settings) {
+  validate() {
+    return;
+    let pts = {};
+    const pointToCritterIndex = Globals.pointToCritterIndex;
+    for (let i = 0; i < this.length; i++) {
+      const pos = this.cellPositions[i];
+      if (this.unfolded && pts[pos]) {
+        debugger;
+      }
+      pts[pos] = true;
 
+      const curIndex = pointToCritterIndex[pos];
+      if (curIndex !== this.critterIndex) {
+        debugger;
+      }
+    }
+  }
+
+  takeTurn() {
+
+    if (this.wasEaten) {
+      return;
+    }
+
+
+    if (!SimulationConstants.allowDeathBirth && !this.wasEaten) {
+      this.energy = Math.max(this.energy, 20);
+    }
+    const { settings } = Globals;
+    const { genome } = this.genomeInfo;
     if (this.timer1 > 0) {
       --this.timer1;
     }
@@ -92,7 +136,7 @@ export class Critter {
     }
 
 
-    let numCycles = 10;
+    let numCycles = 20;
     this.energy -= settings.turnCost;
     ++this.age;
     if (this.hypermode) {
@@ -101,10 +145,32 @@ export class Critter {
       numCycles *= 2;
     }
 
-    let maxExecution = this.genome.length;
+    let maxExecution = genome.length;
+
+    if (this.photosynthesizing) {
+
+      if (this.unfolded /* && this.length > 1 */) {
+        this.energy += settings.photoSynthesisEnergy * this.length; // (this.length - 1) * (settings.photoSynthesisEnergy - settings.turnCost);
+      }
+      // --this.photosynthesizing;
+      // this.energy += settings.photoSynthesisEnergy / 2;
+      // + (this.length - 1) * (settings.photoSynthesisEnergy - settings.turnCost);
+      // this.energy += settings.photoSynthesisEnergy + (this.length - 1) * (settings.photoSynthesisEnergy - settings.turnCost);
+    }
+
 
     while (!this.sleepCount && maxExecution-- > 0) {
-      const code = this.genome[this.pc] as GenomeCode;
+      this.validate();
+      this.energy -= settings.baseInstructionCost;
+
+      if (this.pc === 0) {
+        this.hypermode = false;
+        // this.setPhotosynthesizing(false);
+        // this.condition = false;
+      }
+
+      const code = genome[this.pc] as GenomeCode;
+      // this.energy -= .25;
       const codeCycles = getCyclesPerCode(code);
       numCycles -= codeCycles;
       if (numCycles < 0) {
@@ -115,20 +181,34 @@ export class Critter {
         case GenomeCode.Photosynthesize:
           this.setPhotosynthesizing(true);
           if (this.unfolded) {
-            this.energy += settings.photoSynthesisEnergy; // * this.numPhotosynthesizeCells;
+            // this.energy += settings.photoSynthesisEnergy; // * this.numPhotosynthesizeCells;
             // this.energy += settings.photoSynthesisEnergy * this.length;
             // this.energy += settings.photoSynthesisEnergy;// + (this.length - 1) * (settings.photoSynthesisEnergy - settings.turnCost);
           }
           break;
 
-        case GenomeCode.MoveAndEat:
-          this.move(settings, true);
+        case GenomeCode.StopPhotosynthesize:
           this.setPhotosynthesizing(false);
           break;
 
+        // case GenomeCode.MoveAndEat:
+        //   this.move(settings, true);
+        //   this.setPhotosynthesizing(false);
+        //   break;
+
+        case GenomeCode.Eat:
+          // const orientation = this.orientation;
+          // for (let i = 0; i < 4; i++) {
+          //   this.orientation = i;
+          this.eat(true); //!!(this.pc & 1));
+          // }
+          // this.orientation = orientation;
+          break;
+
+
         case GenomeCode.Move:
-          this.move(settings, false);
-          this.setPhotosynthesizing(false);
+          this.move(settings);
+          // this.setPhotosynthesizing(false);
           break;
 
         case GenomeCode.Sleep:
@@ -138,6 +218,10 @@ export class Critter {
 
         case GenomeCode.Hypermode:
           this.hypermode = true;
+          break;
+
+        case GenomeCode.Spawn:
+          this.forceSpawn = true;
           break;
 
         case GenomeCode.TurnLeft:
@@ -174,167 +258,267 @@ export class Critter {
 
         case GenomeCode.TestSeeFood:
           {
-            let distance = settings.sightDistance;
-            while (this.pc < (this.genome.length - 2) && this.genome[(this.pc + 1) % this.genome.length] === GenomeCode.TestSeeFood) {
-              distance += settings.sightDistance;
-              this.pc = (this.pc + 1) % this.genome.length;
-            }
-            this.testSeeFood(settings, distance);
+            let distance = (settings.sightDistance) * (this.pc + 1);
+            // let distance = (code === GenomeCode.TestSeeFood) ? settings.sightDistance : (settings.sightDistance * 2);// * (this.pc + 1);
+            // while (this.pc < (genome.length - 2) && genome[(this.pc + 1) % genome.length] === GenomeCode.TestSeeFood) {
+            //   distance += settings.sightDistance;
+            //   this.pc = (this.pc + 1) % genome.length;
+            // }
+            this.testSeeFood(distance, true);
+            this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           }
           break;
 
         case GenomeCode.TestBlocked:
           this.condition = this.blocked;
+          this.blocked = false;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+          break;
+
+        case GenomeCode.TestBitten:
+          this.condition = this.bitten;
+          this.bitten = false;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+          break;
+
+        case GenomeCode.TestSpawned:
+          this.condition = !!this.spawnedCount;
+          this.spawnedCount = 0;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
 
         case GenomeCode.TestTimer1:
-          this.condition = this.timer1 === 0;
-          this.timer1 = -1;
+          this.condition = this.timer1 > 0;
+          // this.condition = this.timer1 === 0;
+          // this.timer1 = -1;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
         case GenomeCode.TestTimer2:
-          this.condition = this.timer2 === 0;
-          this.timer2 = -2;
+          this.condition = this.timer2 > 0;
+          // this.condition = this.timer2 === 0;
+          // this.timer2 = -2;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
-
-        case GenomeCode.TestHighEnergy:
-          this.condition = (this.energy > this.spawnEnergy * .75);
+        case GenomeCode.TestUnfolded:
+          this.condition = this.unfolded;
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
-        case GenomeCode.TestLowEnergy:
-          this.condition = (this.energy < this.spawnEnergy * .25);
+        case GenomeCode.TestTurn: {
+          const turnPhase = (this.pc + 1) * 10;
+          this.condition = !!(Math.floor(Globals.turn / turnPhase) & 1);
+          this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
+        }
 
         case GenomeCode.IfCondition:
-          if (this.pc !== (this.genome.length - 1) && !this.condition) {
-            this.pc = (this.pc + 1) % this.genome.length;
+          this.condition = this.conditions[(--this.conditionHead + numConditions) % numConditions];
+          if (this.pc !== (genome.length - 1) && !this.condition) {
+            this.pc = (this.pc + this.turnDirection + genome.length) % genome.length;
           }
           break;
 
         case GenomeCode.IfNotCondition:
-          if (this.pc !== (this.genome.length - 1) && this.condition) {
-            this.pc = (this.pc + 1) % this.genome.length;
+          this.condition = this.conditions[(--this.conditionHead + numConditions) % numConditions];
+          if (this.pc !== (genome.length - 1) && this.condition) {
+            this.pc = (this.pc + this.turnDirection + genome.length) % genome.length;
           }
           break;
 
         case GenomeCode.Restart:
           this.pc = 0;
-          return;
+          this.turnDirection = 1;
           break;
+
+        case GenomeCode.Reverse:
+          this.turnDirection = -this.turnDirection;
+          break;
+
       }
 
-      this.pc = (this.pc + 1) % this.genome.length;
-      if (this.pc === 0) {
-        this.hypermode = false;
-        // this.condition = false;
-      }
+      this.pc = (this.pc + this.turnDirection + genome.length) % genome.length;
       numCycles -= codeCycles;
     }
-
-    // if (this.photosynthesizing && this.unfolded) {
-    //   this.energy += settings.photoSynthesisEnergy + (this.length - 1) * (settings.photoSynthesisEnergy - settings.turnCost);
-    // }
-
   }
 
 
   setPhotosynthesizing(value: boolean) {
-    if (value !== this.photosynthesizing) {
-      this.photosynthesizing = value;
-      const color = this.photosynthesizing ? ColorGreen : this.color;
-      for (let i = 0; i < this.length; i++) {
-        Globals.setPixel(this.cellPositions[i], color, this.critterIndex);
+    if (value !== !!this.photosynthesizing) {
+      this.photosynthesizing = value ? Globals.settings.photosynthesisDuration : 0;
+      if (this.length > 1 && this.unfolded) {
+        const color = this.photosynthesizing ? this.genomeInfo.colorPhotosynthesizing : this.color;
+        const pointToCritterIndex = Globals.pointToCritterIndex;
+        for (let i = 0; i < this.length; i++) {
+          const pos = this.cellPositions[i];
+          const curIndex = pointToCritterIndex[pos];
+          if (curIndex !== this.critterIndex) {
+            debugger;
+          }
+          Globals.setPixel(this.cellPositions[i], color, this.critterIndex);
+        }
       }
     }
   };
 
-  move(settings: Settings, andEat: boolean) {
+  move(settings: SimulationSettings) {
     this.blocked = false;
+    // this.bitten = false;
     const delta = Orientation.deltas[this.orientation];
     const newHead = (this.cellPositions[0] + delta) & 0xffff;
 
     const destPixel = Globals.pixelArray[newHead];
 
     this.energy -= settings.moveCost;
-    if (andEat) {
-      this.energy -= settings.eatCost;
-    }
 
     if (destPixel === ColorBlack) {
       const color = this.photosynthesizing ? ColorGreen : this.color;
 
       const tail = this.cellPositions[this.length - 1];
 
+      const oldCellPos = this.cellPositions.slice();
       // set head
-      this.cellPositions[0] = newHead;
       for (let i = this.length - 1; i > 0; i--) {
         this.cellPositions[i] = this.cellPositions[i - 1];
       }
+      this.cellPositions[0] = newHead;
 
-      Globals.setPixel(newHead, this.color, this.critterIndex);
+      Globals.setPixel(newHead, color, this.critterIndex);
+
+      if (this.length > 1) {
+        this.unfolded = this.cellPositions[this.length - 2] !== this.cellPositions[this.length - 1];
+      }
 
       if (tail !== this.cellPositions[this.length - 1]) {
 
-        Globals.setPixel(tail, ColorBlack, 0);
+        Globals.setPixel(tail, ColorBlack);
         this.lastTailPoint = tail;
-        this.unfolded = true;
+        // debugger;
+
+        // if (this.unfolded && this.length > 1) {
+        //   let pts = {};
+        //   for (let i = 0; i < this.length; i++) {
+        //     if (pts[this.cellPositions[i]]) {
+        //       console.log(`overlap detected: oldCellPos=${JSON.stringify(oldCellPos)}, newHead=${newHead}, this.cellPositions=${JSON.stringify(this.cellPositions)}`);
+        //       debugger;
+        //     }
+        //     pts[this.cellPositions[i]] = true;
+        //   }
+        // }
+
       }
     } else {
       this.blocked = true;
-      if (andEat) {
-        if (destPixel === ColorGreen) {
-          const hitCritter = Globals.critters[Globals.pointToCritterIndex[newHead]];
-          if (hitCritter) {
-            if (hitCritter.photosynthesizing) {
-              this.blocked = false;
-              let biteDamage = settings.spawnEnergyPerCell;
+    }
+    this.validate();
 
-              this.energy += Math.min(hitCritter.energy, biteDamage * settings.digestionEfficiency);
-              hitCritter.energy -= biteDamage;
-              if (hitCritter.energy <= 0) {
-                hitCritter.energy = -1000; //-hitCritter.spawnEnergy / 2;
-              }
-            }
-          } else {
-            this.energy += settings.spawnEnergyPerCell * settings.digestionEfficiency; // / 2;
-            Globals.setPixel(newHead, ColorBlack, 0);
-          }
-        }
+  }
+
+  get wasEaten() {
+    return this.energy <= -1000;
+  }
+
+  setEaten() {
+    this.energy = -10000;
+    for (let i = 0; i < this.length; i++) {
+      const index = Globals.pointToCritterIndex[this.cellPositions[i]];
+
+      if (index === this.critterIndex || !index) {
+        // Globals.setPixel(this.cellPositions[i], ColorBlack);
+      } else {
+        debugger;
       }
     }
   }
 
-  testSeeFood(settings: Settings, sightDistance?: number) {
+  canEat(critter: Critter, allowCannibalism: boolean = false) {
+    if (critter === this) {
+      return false;
+    }
+    if (!allowCannibalism && critter.genomeInfo === this.genomeInfo) {
+      return false;
+    }
+    if (critter.wasEaten) {
+      return false;
+    }
+    return critter.photosynthesizing || !critter.unfolded;
+  }
+
+  eat(allowCannibalism: boolean) {
+    const { settings } = Globals;
+    // this.setPhotosynthesizing(false);
+    const delta = Orientation.deltas[this.orientation];
+    const newHead = (this.cellPositions[0] + delta) & 0xffff;
+
+    const destPixel = Globals.pixelArray[newHead];
+    this.energy -= settings.eatCost;
+
+    const digestionEfficiency = settings.digestionEfficiencyPercent / 100;
+
+    const hitCritter = Globals.critters[Globals.pointToCritterIndex[newHead]];
+    if (hitCritter) {
+      hitCritter.validate();
+      if (this.canEat(hitCritter, allowCannibalism)) {
+        let biteDamage = settings.spawnEnergyPerCell * settings.biteStrength;
+
+        this.energy += Math.min(hitCritter.unfolded ? hitCritter.energy : settings.spawnEnergyPerCell, biteDamage) * digestionEfficiency;
+        hitCritter.bitten = true;
+        hitCritter.energy -= biteDamage;
+        // if (hitCritter.energy <= 0) {
+        //   hitCritter.setEaten();
+        // }
+      }
+    } else if (destPixel === ColorGreen) {
+      this.energy += settings.spawnEnergyPerCell * digestionEfficiency; // / 2;
+      Globals.setPixel(newHead, ColorBlack);
+    }
+  }
+
+
+  testSeeFood(sightDistance: number, allowCannibalism: boolean) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
 
-    if (!sightDistance) {
-      sightDistance = settings.sightDistance;
-    }
 
     let point = this.cellPositions[0];
     for (let i = 0; i < sightDistance; i++) {
       point = (point + delta) & 0xffff;
-      const destPixel = Globals.pixelArray[point];
-      if (destPixel === ColorGreen) {
-        this.condition = true;
-        if (!settings.cannibalism) {
-          const hitCritter = Globals.critters[Globals.pointToCritterIndex[point]];
-          if (hitCritter && this.genomeIndex === hitCritter.genomeIndex) {
-            this.condition = false;
-          }
+      const hitCritter = Globals.critters[Globals.pointToCritterIndex[point]];
+      if (hitCritter) {
+        if (this.canEat(hitCritter, allowCannibalism)) {
+          this.condition = true;
         }
         break;
-      } else if (destPixel !== ColorBlack) {
-        break;
+      } else {
+        const destPixel = Globals.pixelArray[point];
+        if (destPixel === ColorGreen) {
+          this.condition = true;
+          break;
+        } else if (destPixel !== ColorBlack) {
+          break;
+        }
+
       }
+
+      // if (hitCritter !== this) {
+      //   this.condition = true;
+      //   if (!allowCannibalism) {
+      //     if (hitCritter && hitCritter !== this && this.genomeInfo === hitCritter.genomeInfo) {
+      //       this.condition = false;
+      //     }
+      //   }
+      // }
+      //   break;
+      // } else if (destPixel !== ColorBlack) {
+      //   break;
+      // }
     }
   }
 
   canSpawn() {
-    return this.energy > this.spawnEnergy;
+    return (this.forceSpawn && this.unfolded && this.energy > Globals.settings.spawnEnergyPerCell) || this.energy > this.spawnEnergy;
   }
 
   get isDead() {

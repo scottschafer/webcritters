@@ -1,0 +1,25 @@
+.ValuesEditorPanel {
+  .field-label {
+    min-width: 200px;
+    display: block;
+    margin-bottom: 0;
+    margin-top: 8px;
+  }
+
+  .field-value {
+    display: inline-block;
+    min-width: 50px;
+    text-align: left;
+    margin-left: 5px;
+  }
+
+  input {
+    margin-right: 5px;
+  }
+
+  .radio-group {
+    label {
+      margin-right: 8px;;
+    }
+  }
+}

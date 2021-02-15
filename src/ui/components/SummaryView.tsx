@@ -1,8 +1,8 @@
 import { observer } from 'mobx-react';
 import React from "react";
 import { Row } from 'react-bootstrap';
-import { WorldSummary } from '../common/WorldSummary';
-import { colorToRGB } from '../simulation-code/Colors';
+import { WorldSummary } from '../../common/WorldSummary';
+import { colorToRGB } from '../../simulation-code/Colors';
 import './SummaryView.scss';
 
 class SummaryViewProps {

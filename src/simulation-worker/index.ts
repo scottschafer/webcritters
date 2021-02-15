@@ -3,14 +3,16 @@ import {
   init,
   takeTurn,
   getSummary,
-  updateSettings
+  updateSettings,
+  getDetail
 } from "../simulation-code/simulation";
 
 const exports = {
   init,
   takeTurn,
   getSummary,
-  updateSettings
+  updateSettings,
+  getDetail
 };
 export type SimulationWorker = typeof exports;
 
