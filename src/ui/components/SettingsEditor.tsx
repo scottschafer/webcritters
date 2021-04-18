@@ -1,18 +1,19 @@
 import { observer } from 'mobx-react';
 import React from "react";
+import Collapsible from 'react-collapsible';
 import { SimulationSettings } from '../../simulation-code/SimulationSettings';
 import { ValuesEditorPanel, ValuesEditorPanelFieldDefs } from './ValuesEditorPanel';
 
-type SettingsEditorPanelFieldDefs = Array<{
-  label: string;
-  suffix?: string;
-  fieldName: keyof SimulationSettings;
-  type: 'range' | 'boolean' | 'options';
-  minValue?: number;
-  maxValue?: number;
-  step?: number;
-  options?: Array<{ label: string, value: (string | number | boolean) }>;
-}>;;
+// type SettingsEditorPanelFieldDefs = Array<{
+//   label: string;
+//   suffix?: string;
+//   fieldName: keyof SimulationSettings;
+//   type: 'range' | 'boolean' | 'options';
+//   minValue?: number;
+//   maxValue?: number;
+//   step?: number;
+//   options?: Array<{ label: string, value: (string | number | boolean) }>;
+// }>;;
 
 
 // @observable timer1Length = 10;
@@ -25,14 +26,15 @@ type SettingsEditorPanelFieldDefs = Array<{
 // @observable addFoodCount = 150; //100;
 
 
-const settingsFields: SettingsEditorPanelFieldDefs = [
+const settingsFieldsBasic: ValuesEditorPanelFieldDefs = [
 
   {
     label: 'Speed',
     fieldName: 'speed',
     type: 'range',
     minValue: 0,
-    maxValue: 11
+    maxValue: 11,
+    tooltip: 'Controls the speed of the simulation, from 0 (stopped) to 11 (fast as possible)'
   },
   {
     label: 'Barriers',
@@ -46,6 +48,11 @@ const settingsFields: SettingsEditorPanelFieldDefs = [
     minValue: 0,
     maxValue: 50
   },
+
+
+];
+
+const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
   {
     label: 'Lifespan per cell',
     fieldName: 'lifespanPerCell',
@@ -148,9 +155,7 @@ const settingsFields: SettingsEditorPanelFieldDefs = [
     label: 'Show preview',
     fieldName: 'showPreview',
     type: 'boolean'
-  },
-
-];
+  }];
 
 class SettingsEditorProps {
   readonly settings: SimulationSettings;
@@ -162,10 +167,19 @@ export class SettingsEditor extends React.Component<SettingsEditorProps> {
 
   render() {
     return (
-      <ValuesEditorPanel
-        fieldsToEdit={settingsFields}
-        data={this.props.settings}
-        onChange={this.props.onChange}></ValuesEditorPanel>
+      <>
+        <ValuesEditorPanel
+          fieldsToEdit={settingsFieldsBasic}
+          data={this.props.settings}
+          onChange={this.props.onChange}></ValuesEditorPanel>
+
+        <Collapsible trigger='Advanced Settings'>
+          <ValuesEditorPanel
+            fieldsToEdit={settingsFieldsAdvanced}
+            data={this.props.settings}
+            onChange={this.props.onChange}></ValuesEditorPanel>
+        </Collapsible>
+      </>
     )
   }
 }

@@ -1,15 +1,15 @@
-import { debug } from 'webpack';
 import { FollowingDetails } from '../common/FollowingDetails';
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
-import { ColorBlack, ColorGreen, ColorGray } from './Colors';
+import { ColorBlack, ColorGray, ColorGreen } from './Colors';
 import { Critter } from './Critter';
-import { cellLengthFromGenome, GenomeCode, MoveAndEatGenome, PhotosynthesizeGenome, reproduceGenome } from './Genome';
+import { Genome } from './Genome';
+import { PhotosynthesizeGenome } from './GenomeCode';
 import { genomeStore } from './GenomeStore';
-import { Globals } from './Globals';
-import { decodePoint, makePoint, Orientation } from './Orientation';
+import { globals, Globals } from './Globals';
+import { makePoint, Orientation } from './Orientation';
 import { SimulationSettings } from './SimulationSettings';
 
 export class World {
@@ -26,18 +26,18 @@ export class World {
     for (let i = 1; i <= SimulationConstants.maxCritters; i++) {
       this.critters[i] = new Critter(i);
     }
-    Globals.critters = this.critters;
+    globals.critters = this.critters;
   }
 
   init(sharedData: SharedData, settings: SimulationSettings) {
-    Globals.init(sharedData);
-    Globals.settings = settings;
+    globals.init(sharedData);
+    globals.settings = settings;
     this.reset();
   }
 
   updateSettings(settings: SimulationSettings) {
-    const barriersChanged = (settings.barriers !== Globals.settings.barriers);
-    Globals.settings = settings;
+    const barriersChanged = (settings.barriers !== globals.settings.barriers);
+    globals.settings = settings;
     if (barriersChanged) {
       this.updateBarriers();
     }
@@ -57,11 +57,14 @@ export class World {
         .map(v => v.count)
         .reduce((accumulator, currentValue) => accumulator + currentValue);
 
-      if (total !== Globals.numCritters) {
+      if (total !== globals.numCritters) {
+        console.log(`calc total = ${total}, globals.numCritters = ${globals.numCritters}`);
         debugger;
       }
-      result.totalCritters = Globals.numCritters; //total;
-      result.topGenomes = sortedGenomes.slice(0, maxCritters - 1);
+      result.totalCritters = globals.numCritters; //total;
+      result.topGenomes = sortedGenomes.slice(0, maxCritters - 1).map(
+        genome => ({ genome: genome.asString, count: genome.count, color: genome.color }));
+
     } catch (e) {
       debugger;
     }
@@ -83,13 +86,13 @@ export class World {
     //   y = follow.y;
     // } else {
     //   if (!follow) {
-    //     if (!Globals.numCritters) {
+    //     if (!globals.numCritters) {
     //       return result;
     //     }
 
     //     follow = 1;
     //     let len = 0;
-    //     for (let i = 1; i < Globals.numCritters; i++) {
+    //     for (let i = 1; i < globals.numCritters; i++) {
     //       if (this.critters[i].genomeInfo) {
     //         if (this.critters[i].length > len) {
     //           follow = i;
@@ -113,8 +116,8 @@ export class World {
         if (critter) {
           result.critters[critter.critterIndex] = critter;
         } else {
-          if (Globals.pixelArray[pt] !== ColorBlack) {
-            result.dots.push({ x: ix, y: iy, color: Globals.pixelArray[pt] });
+          if (globals.pixelArray[pt] !== ColorBlack) {
+            result.dots.push({ x: ix, y: iy, color: globals.pixelArray[pt] });
           }
         }
       }
@@ -124,10 +127,10 @@ export class World {
   }
 
   updateBarriers() {
-    if (!Globals.settings.barriers) {
-      for (let i = 0; i < Globals.pixelArray.length; i++) {
-        if (Globals.pixelArray[i] === ColorGray) {
-          Globals.setPixel(i, ColorBlack);
+    if (!globals.settings.barriers) {
+      for (let i = 0; i < globals.pixelArray.length; i++) {
+        if (globals.pixelArray[i] === ColorGray) {
+          globals.setPixel(i, ColorBlack);
         }
       }
     } else {
@@ -136,26 +139,29 @@ export class World {
         if (critter) {
           this.kill(critter.critterIndex, false);
         }
-        Globals.setPixel(point, ColorGray);
+        globals.setPixel(point, ColorGray);
 
-        // Globals.pixelArray[point] = ColorGray;
+        // globals.pixelArray[point] = ColorGray;
       }
 
       for (let i = 64; i < 192; i++) {
-        setBarrierPoint(makePoint(i, i));
-        setBarrierPoint(makePoint(256 - i, i));
+        if (i < 125 || i > 130) {
+          setBarrierPoint(makePoint(i, i));
+          setBarrierPoint(makePoint(256 - i, i));
+
+        }
       }
     }
   }
 
   reset() {
-    Globals.turn = 0;
-    for (let i = 0; i < Globals.pointToCritterIndex.length; i++) {
-      Globals.pointToCritterIndex[i] = 0;
+    globals.turn = 0;
+    for (let i = 0; i < globals.pointToCritterIndex.length; i++) {
+      globals.pointToCritterIndex[i] = 0;
     }
 
     // clear board
-    const pixelArray = Globals.pixelArray;
+    const pixelArray = globals.pixelArray;
     for (let i = 0; i < pixelArray.length; i++) {
       pixelArray[i] = ColorBlack;
     }
@@ -163,7 +169,7 @@ export class World {
 
 
     // reset critters arrays
-    Globals.numCritters = 0;
+    globals.numCritters = 0;
 
     // reset empty slot indices
     this.emptyCritterSlots = [];
@@ -172,80 +178,97 @@ export class World {
     }
     this.emptyCritterSlotIndex = SimulationConstants.maxCritters - 1;
 
-    // spawn some critters;
-    for (let i = 0; i < SimulationConstants.maxCritters / 10; i++) { // SimulationConstants.maxCritters / 10; i++) {
-      const pos = this.findEmptyPos();
-      if (i < 50 && SimulationConstants.insertEvolvedCritter) {
-        this.spawn(SimulationConstants.insertEvolvedCritter, pos);
-      } else {
-        this.spawn(PhotosynthesizeGenome, pos).energy = Math.random() * Globals.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
+    let countToInsert = SimulationConstants.maxCritters / 10;
+
+    Object.keys(SimulationConstants.insertEvolvedCritters).forEach(genome => {
+      const count = SimulationConstants.insertEvolvedCritters[genome];
+      for (let i = 0; i < count; i++) {
+        const pos = this.findEmptyPos();
+        this.spawn(genome, pos, false);
+        --countToInsert;
       }
+    });
+
+    // spawn some critters;
+    for (let i = 0; i < countToInsert; i++) { // SimulationConstants.maxCritters / 10; i++) {
+      const pos = this.findEmptyPos();
+      // if (i < 1 && SimulationConstants.insertEvolvedCritter) {
+      //   this.spawn(SimulationConstants.insertEvolvedCritter, pos, false);
+      // } else {
+      this.spawn(PhotosynthesizeGenome, pos, false).energy = Math.random() * globals.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
+      // }
     }
   }
 
-  takeTurn() {
+  takeTurn(numTurns: number = 1): number {
     if (this.takingTurn) {
       debugger;
     }
     this.takingTurn = true;
-    let iCritter = 1;
-    const numCritters = Globals.numCritters;
-    for (let i = 0; i < numCritters;) {
-      const critter = this.critters[iCritter];
-      if (critter.genomeInfo) {
 
+    for (let count = 0; count < numTurns; count++) {
+
+      let iCritter = 1;
+      const numCritters = globals.numCritters;
+      for (let i = 0; i < numCritters;) {
         const critter = this.critters[iCritter];
-        critter.takeTurn();
+        if (critter.genome) {
 
-        if (critter.isDead && (SimulationConstants.allowDeathBirth || critter.wasEaten)) { //  && (critter.genomeInfo.genome === GenomeCode.Photosynthesize || !SimulationConstants.testMode)) {
-          this.kill(iCritter);
-        }
-        else if (critter.canSpawn() && SimulationConstants.allowDeathBirth) {
-          const tailPoint = critter.lastTailPoint; // .cellPositions[critter.length - 1];
+          const critter = this.critters[iCritter];
+          critter.takeTurn(globals);
 
-          critter.forceSpawn = false;
-          let newPos = this.findEmptyPos(tailPoint);
-          if (newPos) {
-            const newCritter = this.spawn(critter.genomeInfo.genome, newPos);
-            if (newCritter) {
-              newCritter.energy = critter.energy / 2;
-              critter.energy /= 2;
-              ++critter.spawnedCount;
-              newCritter.sleepCount = Globals.settings.sleepAfterSpawnCount;
-              // newCritter.orientation = critter.orientation;
-            }
-          } else {
-            critter.energy = critter.spawnEnergy / 2;
-            // critter.energy /= 2; //= -10000;// *= .8;
-            // critter.energy = -10000;// *= .8;
-            // critter.setEaten();
+          if (critter.isDead && (SimulationConstants.allowDeathBirth || critter.wasEaten)) { //  && (critter.genome.genome === GenomeCode.Photosynthesize || !SimulationConstants.testMode)) {
+            this.kill(iCritter);
           }
+          else if (critter.canSpawn(globals) && SimulationConstants.allowDeathBirth) {
+            const tailPoint = critter.lastTailPoint; // .cellPositions[critter.length - 1];
+
+            critter.forceSpawn = false;
+            let newPos = this.findEmptyPos(tailPoint);
+            if (newPos) {
+              const newCritter = this.spawn(critter.genome, newPos);
+              if (newCritter) {
+                newCritter.energy = critter.energy / 2;
+                critter.energy /= 2;
+                ++critter.spawnedCount;
+                newCritter.sleepCount = globals.settings.sleepAfterSpawnCount;
+                if (newCritter.length > 1) {
+                  newCritter.orientation = critter.orientation;
+                }
+              }
+            } else {
+              // critter.energy = critter.energy / 2;
+              // critter.energy /= 2; //= -10000;// *= .8;
+              // critter.energy = -10000;// *= .8;
+              critter.setEaten(globals);
+            }
+          }
+          ++i;
         }
-        ++i;
+        ++iCritter;
       }
-      ++iCritter;
-    }
 
-    ++Globals.turn;
+      ++globals.turn;
 
-    if (!Globals.numCritters) {
-      this.spawn(PhotosynthesizeGenome, this.findEmptyPos());// pos.x, pos.y);
-    }
+      if (!globals.numCritters) {
+        this.spawn(PhotosynthesizeGenome, this.findEmptyPos());// pos.x, pos.y);
+      }
 
 
 
-    if (!(Globals.turn % 100)) {
+      if (!(globals.turn % 100)) {
 
-      this.addFood();
-      // this.spawnPlantFromFood();
+        this.addFood();
+        // this.spawnPlantFromFood();
+      }
     }
     this.takingTurn = false;
 
-    // for (let i = 0; i < Globals.pointToCritterIndex.length; i++) {
-    //   const index = Globals.pointToCritterIndex[i];
+    // for (let i = 0; i < globals.pointToCritterIndex.length; i++) {
+    //   const index = globals.pointToCritterIndex[i];
     //   if (index) {
     //     const critter = this.critters[index];
-    //     if (critter.genomeInfo) {
+    //     if (critter.genome) {
     //       let found = false;
     //       for (let j = 0; j < critter.length; j++) {
     //         if (critter.cellPositions[j] === i) {
@@ -261,22 +284,22 @@ export class World {
     // }
 
 
-    return Globals.turn;
+    return globals.turn;
   }
 
   addFood() {
-    let numFood = Globals.settings.addFoodCount;
-    while (numFood) {
-      for (let i = 0; i < 100; i++) {
-        let point = Math.floor(Math.random() * 65536);
-        if (Globals.pixelArray[point] === ColorBlack) {
-          if (Globals.pointToCritterIndex[point]) {
-            debugger;
-          }
-          Globals.pixelArray[point] = ColorGreen;
-          --numFood;
-          break;
+    let numFood = globals.settings.addFoodCount;
+    while (numFood--) {
+      // for (let i = 0; i < 100; i++) {
+      let point = Math.floor(Math.random() * 65536);
+      if (globals.pixelArray[point] === ColorBlack) {
+        if (globals.pointToCritterIndex[point]) {
+          debugger;
         }
+        globals.pixelArray[point] = ColorGreen;
+        // // --numFood;
+        // break;
+        // }
       }
     }
   }
@@ -286,8 +309,8 @@ export class World {
     let start = Math.floor(Math.random() * 65536);
     for (let i = 0; i < 65555; i++) {
       let point = (start + i) & 0xffff;
-      if (Globals.pixelArray[point] === ColorGreen && !Globals.pointToCritterIndex[point]) {
-        Globals.pixelArray[point] = ColorBlack;
+      if (globals.pixelArray[point] === ColorGreen && !globals.pointToCritterIndex[point]) {
+        globals.pixelArray[point] = ColorBlack;
         this.spawn('P', point);
         break;
       }
@@ -295,10 +318,10 @@ export class World {
   }
 
   getCritterAtPos(point: number) {
-    let critterIndex = Globals.pointToCritterIndex[point];
+    let critterIndex = globals.pointToCritterIndex[point];
     if (critterIndex) {
       const critter = this.critters[critterIndex];
-      return (critter && critter.genomeInfo) ? critter : null;
+      return (critter && critter.genome) ? critter : null;
     }
     return null;
   }
@@ -307,7 +330,7 @@ export class World {
 
     if (point !== undefined) {
 
-      if (Globals.pixelArray[point] === ColorBlack) {
+      if (globals.pixelArray[point] === ColorBlack) {
         return point;
       }
       let testArray = Orientation.deltasWithDiagonals;
@@ -318,8 +341,8 @@ export class World {
       for (let iTest = 0; iTest < testArray.length; iTest++) {
         const delta = testArray[iTest];
         const newPoint = (point + delta) & 0xffff;
-        let pixel = Globals.pixelArray[newPoint];
-        if (pixel === ColorBlack || (pixel === ColorGreen && !Globals.pointToCritterIndex[newPoint])) {
+        let pixel = globals.pixelArray[newPoint];
+        if (pixel === ColorBlack || (pixel === ColorGreen && !globals.pointToCritterIndex[newPoint])) {
           return newPoint;
         }
       }
@@ -331,7 +354,7 @@ export class World {
       let x = Math.floor(Math.random() * 256);
       let y = Math.floor(Math.random() * 256);
       point = y * 256 + x;
-      let pixel = Globals.pixelArray[point];
+      let pixel = globals.pixelArray[point];
       if (pixel === black) {
         return point;
       }
@@ -340,35 +363,34 @@ export class World {
   }
 
   // setPixel(point: number, value: number, critterIndex = 0) {
-  //   Globals.pixelArray[point] = value;
+  //   globals.pixelArray[point] = value;
   //   if (critterIndex === undefined) {
   //     debugger;
   //   }
-  //   Globals.pointToCritterIndex[point] = critterIndex;
+  //   globals.pointToCritterIndex[point] = critterIndex;
   // }
 
 
-  spawn(genome: string, point: number, allowMutation = true) {
+  spawn(inGenome: string | Genome, point: number, allowMutation = true) {
     let result: Critter = null;
     const initialEnergy = 100;
 
-    const parentGenome = allowMutation ? genome : null;
-    if (allowMutation) {
-      genome = reproduceGenome(genome);
-    }
+    // const parentGenome = allowMutation ? genome : null;
+    // if (allowMutation) {
+    //   genome = reproduceGenome(genome);
+    // }
 
-    if (cellLengthFromGenome(genome) && this.emptyCritterSlotIndex >= 0) {
-      genomeStore.registerBirth(genome, parentGenome);
+    if (this.emptyCritterSlotIndex >= 0) {
+      const genome = genomeStore.registerBirth(inGenome, allowMutation);
 
       const critterIndex = this.emptyCritterSlots[this.emptyCritterSlotIndex--];
 
       const critter = this.critters[critterIndex];
 
-      critter.init(genome, point);
+      critter.init(genome, point, globals);
       result = critter;
 
-      Globals.setPixel(point, critter.color, critterIndex);
-      // ++Globals.numCritters;
+      globals.setPixel(point, critter.color, critterIndex);
     }
     if (result) {
       result.energy = result.spawnEnergy / 2;
@@ -378,16 +400,18 @@ export class World {
   }
 
   kill(iCritter: number, canTurnToFood = true) {
+    // canTurnToFood = false;
     const critter = this.critters[iCritter];
-    genomeStore.registerDeath(critter.genomeInfo.genome);
+    genomeStore.registerDeath(critter.genome);
 
+    let color = ColorBlack;
     if (canTurnToFood) {
-      let color = (critter.photosynthesizing || critter.wasEaten) ? ColorBlack : ColorGreen;
-      for (let i = 0; i < critter.length; i++) {
-        Globals.setPixel(critter.cellPositions[i], color);
-      }
+      color = (critter.photosynthesizing || critter.wasEaten) ? ColorBlack : ColorGreen;
     }
-    critter.genomeInfo = null;
+    for (let i = 0; i < critter.length; i++) {
+      globals.setPixel(critter.cellPositions[i], color);
+    }
+    critter.genome = null;
     this.emptyCritterSlots[++this.emptyCritterSlotIndex] = iCritter;
   }
 

@@ -17,8 +17,12 @@ class SimulationUIStore {
 
   @observable.ref following: FollowingDetails = new FollowingDetails();
 
+  @observable selectedGenome: string;
+  @observable selectedGenomeIndex: number;
+
   lastTurnTime = 0;
   lastGetDetailTime = 0;
+  lastGetSummaryTurn = 0;
   runningAtFullSpeed = false;
   isTakingTurn = false;
 
@@ -45,6 +49,17 @@ class SimulationUIStore {
     width: 256,
     height: 256
   }
+  @observable tooltipsShown: number = 0;
+
+  @action.bound handleShowTooltip() {
+    ++this.tooltipsShown;
+    console.log(`handleShowTooltip; tooltipsShown = ${this.tooltipsShown}`);
+  }
+
+  @action.bound handleHideTooltip() {
+    --this.tooltipsShown;
+    console.log(`handleHideTooltip: tooltipsShown = ${this.tooltipsShown}`);
+  }
 
   @action.bound setSettings(value: SimulationSettings) {
     this.settings = value;
@@ -54,16 +69,16 @@ class SimulationUIStore {
 
   @computed get delay() {
     let result = 0;
-    if (!this.settings.speed) {
+    if (!this.settings.speed || this.tooltipsShown) {
       result = -1;
     } else {
       let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
-      result = delay * delay * 100;
+      result = delay * delay * delay * 100;
+      if (!SimulationConstants.useWorker) {
+        result = Math.max(50, result);
+      }
     }
 
-    if (!SimulationConstants.useWorker) {
-      result = Math.max(50, result);
-    }
     return result;
   }
 
@@ -96,23 +111,32 @@ class SimulationUIStore {
     this.details = value;
   }
 
+  @action.bound handleSelectGenome(genome: string) {
+    this.selectedGenome = genome;
+  }
+
   takeTurn = () => {
 
     this.isTakingTurn = true;
-    workerAPI.takeTurn().then(result => {
+    this.lastTurnTime = new Date().getTime();
+    workerAPI.takeTurn(this.runningAtFullSpeed ? 10 : 1).then(result => {
       this.isTakingTurn = false;
       this.setTurn(result);
-      this.runTurnLoop();
+      // this.runTurnLoop();
 
-      if (this.settings.showPreview && !(result % 100)) {
+      if (this.settings.showPreview && ((result - this.lastGetSummaryTurn) > 100)) {
+        this.lastGetSummaryTurn = result;
+        console.log('calling getSummary because turn is %d', result);
         workerAPI.getSummary().then(result => {
           this.setSummary(result);
         });
       }
 
       const currentTime = new Date().getTime();
-      if (this.settings.showPreview && (currentTime - this.lastGetDetailTime) > (1000 / 20)) {
+      const elapsedDetailTime = currentTime - this.lastGetDetailTime;
+      if (this.settings.showPreview && elapsedDetailTime > (1000 / 20)) {
         this.lastGetDetailTime = currentTime;
+        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
         workerAPI.getDetail(this.following, 32).then(result => {
           this.setDetail(result);
         });
@@ -135,6 +159,7 @@ class SimulationUIStore {
     if (this.isTakingTurn) {
       return;
     }
+
     if (!this.delay) {
       if (!this.runningAtFullSpeed) {
         this.runningAtFullSpeed = true;
@@ -154,4 +179,4 @@ class SimulationUIStore {
 
 };
 
-export const simulationStore = new SimulationUIStore;
+export const simulationStore = new SimulationUIStore();

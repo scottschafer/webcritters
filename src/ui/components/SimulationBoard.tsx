@@ -1,11 +1,9 @@
 import { observer } from "mobx-react";
-import { action } from 'mobx';
 import React from "react";
 import { Col, Container, Row } from 'react-bootstrap';
-import { FollowingDetails } from '../../common/FollowingDetails';
 import { SimulationConstants } from '../../common/SimulationConstants';
 import { colorToRGBStyle } from '../../simulation-code/Colors';
-import { GenomeCode } from '../../simulation-code/Genome';
+import { PhotosynthesizeGenome } from '../../simulation-code/GenomeCode';
 import { decodePoint, makePoint } from '../../simulation-code/Orientation';
 import { simulationStore } from '../SimulationUIStore';
 
@@ -43,10 +41,10 @@ export class SimulationBoard extends React.Component<any> {
 
       const critters = Object.values(simulationStore.details.critters);
       critters.forEach(critter => {
-        if (critter.genomeInfo) {
+        if (critter.genome) {
           for (let i = 0; i < critter.length; i++) {
             if (critter.cellPositions[i] === pt) {
-              console.log(critter.genomeInfo.genome);
+              console.log(critter.genome.asString);
               return;
             }
           }
@@ -106,7 +104,7 @@ export class SimulationBoard extends React.Component<any> {
           });
           const critters = Object.values(simulationStore.details.critters);
           critters.forEach(critter => {
-            if (!critter.genomeInfo) {
+            if (!critter.genome) {
               return;
             }
             const points: Array<{ x: number, y: number }> = [];
@@ -127,7 +125,7 @@ export class SimulationBoard extends React.Component<any> {
               const color = critter.color; // critter.photosynthesizing ? ColorGreen : critter.color;
               ctxDetails.lineWidth = (points.length === 1) ? pixelSize : pixelSize * .7;
 
-              const genome = critter.genomeInfo.genome;
+              const genome = critter.genome.asString;
               // if (true) { // genome.length > 1 && critter.photosynthesizing) {
               //   ctxDetails.shadowColor = 'rgba(0,255,0, 1)';
               //   ctxDetails.shadowBlur = 8;
@@ -156,7 +154,7 @@ export class SimulationBoard extends React.Component<any> {
               ctxDetails.closePath();
 
 
-              if (critter.genomeInfo.genome !== GenomeCode.Photosynthesize) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
+              if (critter.genome.asString !== PhotosynthesizeGenome) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
                 ctxDetails.fillStyle = 'white';
                 // ctxDetails.strokeStyle = 'white';
                 // ctxDetails.lineWidth = 1;

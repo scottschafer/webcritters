@@ -18,7 +18,7 @@ import { FollowingDetails } from '../common/FollowingDetails';
 interface WorkerAPI {
   init(sharedData: SharedData, settings: SimulationSettings);
   updateSettings(settings: SimulationSettings);
-  takeTurn(): Promise<number>;
+  takeTurn(numTurns: number): Promise<number>;
   getSummary(): Promise<WorldSummary>;
   getSummary(): Promise<WorldSummary>;
   getDetail(follow: FollowingDetails, dimension: number): Promise<WorldDetails>;
@@ -35,7 +35,7 @@ export const workerAPI: WorkerAPI =
       const workerApi = wrap<import(".").SimulationWorker>(worker);
       return workerApi;
     } else {
-      const takeTurnReturnPromise = () => { return new Promise<number>(resolve => { resolve(takeTurn()) }) };
+      const takeTurnReturnPromise = (numTurns: number = 1) => { return new Promise<number>(resolve => { resolve(takeTurn(numTurns)) }) };
       const getSummaryReturnPromise = () => { return new Promise<WorldSummary>(resolve => { resolve(getSummary()) }) };
       const getDetailReturnPromise = (follow: FollowingDetails, dimension = 32) => {
         return new Promise<WorldDetails>(resolve => { resolve(getDetail(follow, dimension)) })

@@ -13,6 +13,7 @@ export type ValuesEditorPanelFieldDefs = Array<{
   maxValue?: number;
   step?: number;
   options?: Array<{ label: string, value: (string | number | boolean) }>;
+  tooltip?: string;
 }>;;
 
 class ValuesEditorPanelProps {
@@ -55,7 +56,7 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
       <Row>
         {this.props.fieldsToEdit.map(field =>
           <Col md={3} key={field.fieldName}>
-            <label className='field-label'>{field.label}</label>
+            <label className='field-label' data-tip={field.tooltip}>{field.label}</label>
             {(field.type === 'range') &&
               <>
                 <input type="range" data-fieldname={field.fieldName}
@@ -75,7 +76,7 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
               <div className='radio-group'>
                 {(field.options || booleanOptions).map(option =>
 
-                  <label key={option.label}>
+                  <label key={option.label} data-tooltip='This is a tooltip'>
 
                     <input type="radio"
                       data-fieldname={field.fieldName}

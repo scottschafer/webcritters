@@ -9,8 +9,8 @@ export function init(sharedData: SharedData, settings: SimulationSettings) {
   gWorld.init(sharedData, settings);
 }
 
-export function takeTurn() {
-  return gWorld.takeTurn();
+export function takeTurn(numTurns: number = 1) {
+  return gWorld.takeTurn(numTurns);
 }
 
 export function getSummary() {

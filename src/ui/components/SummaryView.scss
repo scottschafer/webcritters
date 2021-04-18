@@ -4,6 +4,12 @@
     td {
       margin-right: 5px;
     }
+    .genome-row {
+      cursor: pointer;
+    }
+    .selected-genome {
+      background-color: lightblue;
+    }
     tr {
       td:first-child {
         min-width: 80px;
