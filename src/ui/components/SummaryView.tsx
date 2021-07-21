@@ -1,12 +1,13 @@
 import { observer } from 'mobx-react';
 import React from "react";
-import { Row } from 'react-bootstrap';
-import ReactTooltip from 'react-tooltip';
 import { WorldSummary } from '../../common/WorldSummary';
 import { colorToRGB } from '../../simulation-code/Colors';
 import { simulationStore } from '../SimulationUIStore';
 import { GenomeCodeList } from './GenomeCodeList';
+import Grid from '@material-ui/core/Grid';
+
 import './SummaryView.scss';
+import ReactTooltip from 'react-tooltip';
 
 interface SummaryViewProps {
   readonly summary: WorldSummary;
@@ -42,14 +43,14 @@ export class SummaryView extends React.Component<SummaryViewProps> {
       return null;
     }
     return (
-      <div className='SummaryView'>
-        <Row>
+      <Grid container>
+        <Grid item xs={12}>
           Total critters: {summary.totalCritters}
-        </Row>
-        <Row>
+        </Grid>
+        <Grid item xs={12}>
           Top genomes:
-          </Row>
-        <Row>
+          </Grid>
+        <Grid item xs={12}>
           <table>
             <tbody>
               {summary.topGenomes.map(genome => (
@@ -79,11 +80,12 @@ export class SummaryView extends React.Component<SummaryViewProps> {
               ))}
             </tbody>
           </table>
-        </Row>
+        </Grid>
 
         {false && summary.topGenomes.length &&
           <GenomeCodeList genome={summary.topGenomes[0].genome} />}
-      </div>
+        {/* </div> */}
+      </Grid>
     )
   }
 }

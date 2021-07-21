@@ -59,7 +59,7 @@ export const GenomeCodeToInfoMap: {
     char: 'P',
     numCycles: 10,
     name: 'Photosynthesize',
-    description: 'Gain energy'
+    description: 'Photosynthesize'
   },
   [GenomeCode.StopPhotosynthesize]: {
     char: 'p',
