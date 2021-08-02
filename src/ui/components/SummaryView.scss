@@ -1,9 +1,6 @@
 .SummaryView {
   table {
     text-align: left;
-    td {
-      margin-right: 5px;
-    }
     .genome-row {
       cursor: pointer;
     }
@@ -16,6 +13,11 @@
         text-align: right;
         padding-right: 10px;
       }
-    }
+      td:last-child {
+        margin-right: 5px;
+        text-align: left;
+        min-width: 80px;
+      }
+     }
   }
 }

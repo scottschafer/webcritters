@@ -1,6 +1,5 @@
 import { observer } from 'mobx-react';
 import React from "react";
-import Collapsible from 'react-collapsible';
 import { SimulationSettings } from '../../simulation-code/SimulationSettings';
 import { ValuesEditorPanel, ValuesEditorPanelFieldDefs } from './ValuesEditorPanel';
 
@@ -49,6 +48,13 @@ const settingsFieldsBasic: ValuesEditorPanelFieldDefs = [
     maxValue: 50
   },
 
+  {
+    label: 'Death rays',
+    fieldName: 'deathRays',
+    type: 'range',
+    minValue: 0,
+    maxValue: 4
+  },
 
 ];
 
@@ -163,7 +169,7 @@ class SettingsEditorProps {
 }
 
 @observer
-export class SettingsEditor extends React.Component<SettingsEditorProps> {
+export class SettingsEditorBasic extends React.Component<SettingsEditorProps> {
 
   render() {
     return (
@@ -172,13 +178,21 @@ export class SettingsEditor extends React.Component<SettingsEditorProps> {
           fieldsToEdit={settingsFieldsBasic}
           data={this.props.settings}
           onChange={this.props.onChange}></ValuesEditorPanel>
+      </>
+    )
+  }
+}
 
-        <Collapsible trigger='Advanced Settings'>
-          <ValuesEditorPanel
-            fieldsToEdit={settingsFieldsAdvanced}
-            data={this.props.settings}
-            onChange={this.props.onChange}></ValuesEditorPanel>
-        </Collapsible>
+@observer
+export class SettingsEditorAdvanced extends React.Component<SettingsEditorProps> {
+
+  render() {
+    return (
+      <>
+        <ValuesEditorPanel
+          fieldsToEdit={settingsFieldsAdvanced}
+          data={this.props.settings}
+          onChange={this.props.onChange}></ValuesEditorPanel>
       </>
     )
   }

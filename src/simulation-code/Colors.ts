@@ -98,3 +98,4 @@ export const colorToRGBStyle = (color: number) => {
 export const ColorBlack = colorToNumber(0, 0, 0);
 export const ColorGreen = colorToNumber(0, 255, 0);
 export const ColorGray = colorToNumber(128, 128, 128);
+export const ColorDeathRay = colorToNumber(255, 63, 65);

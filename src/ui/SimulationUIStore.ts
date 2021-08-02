@@ -126,7 +126,7 @@ class SimulationUIStore {
 
       if (this.settings.showPreview && ((result - this.lastGetSummaryTurn) > 100)) {
         this.lastGetSummaryTurn = result;
-        console.log('calling getSummary because turn is %d', result);
+//        console.log('calling getSummary because turn is %d', result);
         workerAPI.getSummary().then(result => {
           this.setSummary(result);
         });
@@ -136,7 +136,7 @@ class SimulationUIStore {
       const elapsedDetailTime = currentTime - this.lastGetDetailTime;
       if (this.settings.showPreview && elapsedDetailTime > (1000 / 20)) {
         this.lastGetDetailTime = currentTime;
-        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
+//        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
         workerAPI.getDetail(this.following, 32).then(result => {
           this.setDetail(result);
         });

@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import ReactTooltip from 'react-tooltip';
 
 import { simulationStore } from './SimulationUIStore';
-import { SettingsEditor } from './components/SettingsEditor';
 
 import { SimulationBoard } from './components/SimulationBoard';
 // import Row, Col, Container, Button from '@material-ui/core/Grid';
@@ -12,11 +11,13 @@ import { SummaryView } from './components/SummaryView';
 // import 'bootstrap/dist/css/bootstrap.min.css';
 import "./App.css";
 import { Button, Container, Grid, Tab, Tabs } from '@material-ui/core';
+import { SettingsEditorAdvanced, SettingsEditorBasic } from "./components/SettingsEditor";
 
 
-const tabs = ['Settings'];
+const tabs = ['Settings', 'Advanced'];
 enum eTabs {
-  Settings
+  SettingsBasic,
+  SettingsAdvanced
 };
 
 const App: React.FC = observer(() => {
@@ -58,22 +59,28 @@ const App: React.FC = observer(() => {
           </Grid>
         </Grid>
 
-        <Grid container direction='column'>
+        <Grid container direction='column' spacing={3}>
+        <Grid item xs={12}>
+        <Grid item justify='center'>
 
           <Tabs
+            centered
             value={selectedTab}
             onChange={handleChangeTab}
             indicatorColor="primary"
-            textColor="primary"
-            centered>
+            textColor="primary">
             {tabs.map((title, i) => <Tab key={i} label={title} {...a11yProps(i)} selected={selectedTab === i} />)}
           </Tabs>
-          {
-            (selectedTab === eTabs.Settings) && <div>
-              <SettingsEditor settings={simulationStore.settings} onChange={simulationStore.setSettings}></SettingsEditor>
-            </div>
-          }
+          </Grid>
 
+          {
+            (selectedTab === eTabs.SettingsBasic) && <div>
+            <SettingsEditorBasic settings={simulationStore.settings} onChange={simulationStore.setSettings}/>
+            </div>}
+            {(selectedTab === eTabs.SettingsAdvanced) && <div>
+            <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings}/>
+          </div>}
+          
           <h2>TODO:</h2>
           <ul style={{ 'textAlign': 'left' }}>
             <li>Separate basic and advanced settings</li>
@@ -84,8 +91,9 @@ const App: React.FC = observer(() => {
             <li>Play Vs Mode</li>
           </ul>
         </Grid>
-      </Grid>
-    </div >
+        </Grid>
+        </Grid>
+      </div >
   );
 });
 

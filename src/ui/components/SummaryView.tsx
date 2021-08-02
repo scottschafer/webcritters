@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react';
-import React from "react";
+import React, { CSSProperties } from "react";
 import { WorldSummary } from '../../common/WorldSummary';
 import { colorToRGB } from '../../simulation-code/Colors';
 import { simulationStore } from '../SimulationUIStore';
@@ -27,6 +27,7 @@ const getStyleSwatchForGenome = (color: number) => {
   };
 }
 
+
 @observer
 export class SummaryView extends React.Component<SummaryViewProps> {
 
@@ -42,8 +43,10 @@ export class SummaryView extends React.Component<SummaryViewProps> {
     if (!summary) {
       return null;
     }
+
+    const topGenomes = summary.topGenomes.slice(0,14);
     return (
-      <Grid container>
+      <Grid container className='SummaryView'>
         <Grid item xs={12}>
           Total critters: {summary.totalCritters}
         </Grid>
@@ -53,7 +56,7 @@ export class SummaryView extends React.Component<SummaryViewProps> {
         <Grid item xs={12}>
           <table>
             <tbody>
-              {summary.topGenomes.map(genome => (
+              {topGenomes.map(genome => (
                 <tr
                   data-tip data-for={genome.genome}
                   data-genome={genome.genome}

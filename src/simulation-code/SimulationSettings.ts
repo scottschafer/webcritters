@@ -32,4 +32,5 @@ export class SimulationSettings {
   /* @observable */showPreview = true;
   /* @observable */sleepAfterSpawnCount = 5; // 25;
 
+  deathRays = 0;
 }

@@ -1,9 +1,11 @@
+import { colors } from '@material-ui/core';
+import { settings } from 'cluster';
 import { FollowingDetails } from '../common/FollowingDetails';
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
-import { ColorBlack, ColorGray, ColorGreen } from './Colors';
+import { ColorBlack, ColorDeathRay, ColorGray, ColorGreen } from './Colors';
 import { Critter } from './Critter';
 import { Genome } from './Genome';
 import { PhotosynthesizeGenome } from './GenomeCode';
@@ -254,7 +256,32 @@ export class World {
         this.spawn(PhotosynthesizeGenome, this.findEmptyPos());// pos.x, pos.y);
       }
 
-
+      if (globals.settings.deathRays) {
+        const phase = 400 * globals.settings.deathRays;
+        const duration = 50;
+        const turnPhase = (globals.turn % phase);
+        if (turnPhase < duration) {
+          let xStart = 0, xStep = 1;
+          let yStart = 16, yStep = 32;
+          for (let y = yStart; y < 256; y += yStep) {
+             for (let x = xStart; x < 256; x += xStep) {
+               const point = y * 256 + x;
+               const critter = this.getCritterAtPos(point);
+              if (critter) {
+                critter.energy = -1000;
+              }                           
+              globals.pixelArray[point] = ColorDeathRay;
+              // globals.setPixel(point, ColorDeathRay);
+            }
+          }
+        } else if (turnPhase === duration) {
+          for (let point = 0; point < 65536; point++) {
+            if (globals.pixelArray[point] === ColorDeathRay) {
+              globals.setPixel(point, ColorBlack);
+            }
+          }
+        }
+      }
 
       if (!(globals.turn % 100)) {
 

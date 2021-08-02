@@ -1,3 +1,23 @@
+# WebCritters - a simple evolutionary life simulation
+
+## Rules
+A critter is a simple simulated organism that exists on a 2D grid. It gains energy either by photosynthesizing or eating another critter. If it gains enough
+energy, it will produce an offspring that contains a copy of the parent's genome with an optional mutation.
+
+Every turn costs energy, and some actions (moving, eating) cost additional energy. If a critter's energy goes to 0, it dies and turns to food.
+
+## Gemome format
+
+A genome is a number of pairs of letters and numbers
+
+A
+B
+C
+D
+E
+F
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

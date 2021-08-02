@@ -1,6 +1,6 @@
 import { observer } from "mobx-react";
 import React from "react";
-import { Col, Container, Row } from 'react-bootstrap';
+import { Button, Container, Grid, Tab, Tabs } from '@material-ui/core';
 import { SimulationConstants } from '../../common/SimulationConstants';
 import { colorToRGBStyle } from '../../simulation-code/Colors';
 import { PhotosynthesizeGenome } from '../../simulation-code/GenomeCode';
@@ -229,12 +229,11 @@ export class SimulationBoard extends React.Component<any> {
 
   render() {
     return (
-      <Container fluid>
-        <Row>
+      <Grid container direction='column'>
+        <Grid item xs={true}>
           <label>Turn: </label> {simulationStore.turn}
-        </Row>
-        <Row>
-          <Col>
+        </Grid>
+        <Grid item xs={true}>
             <canvas
               ref={this.canvasRef}
               width={simulationStore.config.width} height={simulationStore.config.height}
@@ -249,9 +248,8 @@ export class SimulationBoard extends React.Component<any> {
               width={simulationStore.config.width} height={simulationStore.config.height}
               style={SimulationBoard.canvasStyle}
             ></canvas>
-          </Col>
-        </Row>
-      </Container>
+          </Grid>
+      </Grid>
     )
   }
 }
