@@ -1,9 +1,7 @@
 import { Grid } from '@material-ui/core';
-import { action } from 'mobx';
-import { observer } from 'mobx-react';
-import React, { useEffect } from "react";
-import { Col, Container, Row } from 'react-bootstrap';
 import Slider from '@material-ui/core/Slider';
+import { observer } from 'mobx-react';
+import React from "react";
 import './ValuesEditorPanel.scss';
 
 export type ValuesEditorPanelFieldDefs = Array<{
@@ -27,12 +25,15 @@ class ValuesEditorPanelProps {
 
 const booleanOptions = [{ 'label': 'on', value: true }, { 'label': 'off', value: false }];
 
-const style = { width: '50%' };
+const style = {
+ //  width: '50%'
+   };
 
 @observer
 export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
 
-  onChangeValue = (evt: React.ChangeEvent<HTMLInputElement>, val?: any) => {
+  onChangeValue = (evt: React.ChangeEvent<HTMLInputElement>, val?: number) => {
+    val = val ?? evt.currentTarget.valueAsNumber;
     const fieldName = ((evt.target.attributes['data-fieldname'] || {}).value);
     if (fieldName) {
       const newValue = { ...this.props.data };
@@ -40,6 +41,7 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
       if (field) {
         if (field.type === 'range') {
           newValue[fieldName] = val;//  evt.target.valueAsNumber;
+          console.log(`set ${fieldName} to ${val}`);
         } else if (field.type === 'boolean' || field.type === 'options') {
           let selectedValue = evt.target.value;
           (field.options || booleanOptions).forEach(option => {
@@ -62,11 +64,12 @@ export class ValuesEditorPanel extends React.Component<ValuesEditorPanelProps> {
           <label className='field-label' data-tip={field.tooltip}>{field.label}</label>
           {(field.type === 'range') &&
             <>
-              <Slider
-                style={style}
+              <input 
+                type='range'
+                // style={style}
                 data-fieldname={field.fieldName}
-                min={field.minValue || 0}
-                max={field.maxValue || 100}
+                min={field.minValue ?? 0}
+                max={field.maxValue ?? 100}
                 value={this.props.data[field.fieldName]}
                 step={field.step || 1}
                 onChange={this.onChangeValue} />

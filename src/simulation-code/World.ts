@@ -258,7 +258,7 @@ export class World {
 
       if (globals.settings.deathRays) {
         const phase = 400 * globals.settings.deathRays;
-        const duration = 50;
+        const duration = 200;
         const turnPhase = (globals.turn % phase);
         if (turnPhase < duration) {
           let xStart = 0, xStep = 1;

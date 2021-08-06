@@ -1,5 +1,5 @@
 import { SimulationConstants } from '../common/SimulationConstants';
-import { ColorBlack, ColorGreen } from './Colors';
+import { ColorBlack, ColorDeathRay, ColorGreen } from './Colors';
 import { Genome } from './Genome';
 import { GenomeCode, GenomeCodeToInfoMap } from './GenomeCode';
 import { Globals } from './Globals';
@@ -495,7 +495,7 @@ export class Critter {
 
     this.energy -= settings.moveCost / 2;
 
-    if (destPixel === ColorBlack) {
+    if (destPixel === ColorBlack || destPixel === ColorDeathRay) {
       this.energy -= settings.moveCost / 2;
       this.setPhotosynthesizing(globals, false);
       this.hypermode = false;
