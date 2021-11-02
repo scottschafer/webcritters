@@ -86,8 +86,8 @@ const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
     fieldName: 'baseInstructionCost',
     type: 'range',
     minValue: 0,
-    maxValue: 5,
-    step: .1
+    maxValue: 2,
+    step: .01
   },
 
   {
@@ -102,7 +102,7 @@ const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
     fieldName: 'photoSynthesisEnergy',
     type: 'range',
     minValue: 0,
-    maxValue: 5,
+    maxValue: 10,
     step: .1
   },
 
@@ -125,8 +125,9 @@ const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
     label: 'Bite strength',
     fieldName: 'biteStrength',
     type: 'range',
-    minValue: 1,
+    minValue: 0,
     maxValue: 10,
+    step: .1
   },
   {
     label: 'Sleep count',
@@ -156,6 +157,11 @@ const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
     type: 'range',
     minValue: 0,
     maxValue: 500,
+  },
+  {
+    label: 'Allow Cannibalism',
+    fieldName: 'allowCannibalism',
+    type: 'boolean'
   },
   {
     label: 'Show preview',

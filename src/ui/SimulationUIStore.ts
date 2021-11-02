@@ -1,5 +1,6 @@
 import { action, computed, makeObservable, observable, toJS } from 'mobx';
 import { FollowingDetails } from '../common/FollowingDetails';
+import { GenealogyReport } from '../common/GenealogyReport';
 import { SharedData } from '../common/SharedData';
 import { SimulationConfig } from '../common/SimulationConfig';
 import { SimulationConstants } from '../common/SimulationConstants';
@@ -13,6 +14,7 @@ class SimulationUIStore {
   sharedArrayBufferUint8Array: Uint8Array;
   @observable.ref settings = new SimulationSettings();
   @observable.ref summary: WorldSummary = null;
+  @observable.ref genealogyReport: GenealogyReport = null;
   @observable.ref details: WorldDetails = null;
 
   @observable.ref following: FollowingDetails = new FollowingDetails();
@@ -23,6 +25,7 @@ class SimulationUIStore {
   lastTurnTime = 0;
   lastGetDetailTime = 0;
   lastGetSummaryTurn = 0;
+  lastGetGenealogyTurn = 0;
   runningAtFullSpeed = false;
   isTakingTurn = false;
 
@@ -75,7 +78,7 @@ class SimulationUIStore {
       let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
       result = delay * delay * delay * 100;
       if (!SimulationConstants.useWorker) {
-        result = Math.max(50, result);
+        result = Math.max(1, result);
       }
     }
 
@@ -107,6 +110,10 @@ class SimulationUIStore {
     this.summary = value;
   }
 
+  @action setGenealogyReport(genealogyReport: GenealogyReport) {
+    this.genealogyReport = genealogyReport;
+  }
+
   @action setDetail(value: WorldDetails) {
     this.details = value;
   }
@@ -126,21 +133,32 @@ class SimulationUIStore {
 
       if (this.settings.showPreview && ((result - this.lastGetSummaryTurn) > 100)) {
         this.lastGetSummaryTurn = result;
-//        console.log('calling getSummary because turn is %d', result);
+        //        console.log('calling getSummary because turn is %d', result);
         workerAPI.getSummary().then(result => {
           this.setSummary(result);
         });
       }
 
+
+      if ((result - this.lastGetGenealogyTurn) > 3000) {
+        this.lastGetGenealogyTurn = result;
+        workerAPI.getGenealogyReport().then(result => {
+          this.setGenealogyReport(result);
+        })
+      }
+
+
       const currentTime = new Date().getTime();
       const elapsedDetailTime = currentTime - this.lastGetDetailTime;
       if (this.settings.showPreview && elapsedDetailTime > (1000 / 20)) {
         this.lastGetDetailTime = currentTime;
-//        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
+        //        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
         workerAPI.getDetail(this.following, 32).then(result => {
           this.setDetail(result);
         });
       }
+
+
 
       if (!this.delay) {
         this.runningAtFullSpeed = true;

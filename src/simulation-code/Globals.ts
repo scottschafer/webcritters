@@ -23,7 +23,10 @@ export class Globals {
   /* static*/ setPixel(point: number, color: number, critterIndex = 0) {
     this.pixelArray[point] = color;
 
-    if (this.pointToCritterIndex[point] && critterIndex && critterIndex !== this.pointToCritterIndex[point]) {
+    if (this.pointToCritterIndex[point]
+      && critterIndex
+      && this.pointToCritterIndex[point]
+      && critterIndex !== this.pointToCritterIndex[point]) {
       debugger;
     }
     this.pointToCritterIndex[point] = critterIndex;

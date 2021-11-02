@@ -12,7 +12,7 @@ export class Genome {
   count: number;
   firstTurn: number;
 
-  constructor(src: string | Array<GenomeCode>, readonly parentAsString: string) {
+  constructor(src: string | Array<GenomeCode>, readonly ancestors: string) {
     if (typeof src === 'string') {
       this.codes = new Array<GenomeCode>(src.length);
       this.codesInfo = new Array<GenomeCodeInfo>(src.length);
@@ -95,24 +95,24 @@ export class Genome {
       }
     }
 
-    return new Genome(newCodes, this.asString);
+    return new Genome(newCodes, this.ancestors ? (this.ancestors + ',' + this.asString) : this.asString);
   }
+
+  // export function cellLengthFromGenome(genome: string) {
+  //   const { settings } = Globals;
+  //   return Math.min(settings.limitCellLength, genome.length);
+  //   // let result = 0;
+
+  //   // for (let i = 0; i < genome.length; ++i) {
+  //   //   switch (genome[i]) {
+  //   //     case GenomeCode.Move:
+  //   //     case GenomeCode.MoveAndEat:
+  //   //     case GenomeCode.Photosynthesize:
+  //   //     case GenomeCode.Sleep:
+  //   //       ++result;
+  //   //   }
+  //   // }
+
+  //   // return Math.min(1, result);
+  // }
 }
-
-// export function cellLengthFromGenome(genome: string) {
-//   const { settings } = Globals;
-//   return Math.min(settings.limitCellLength, genome.length);
-//   // let result = 0;
-
-//   // for (let i = 0; i < genome.length; ++i) {
-//   //   switch (genome[i]) {
-//   //     case GenomeCode.Move:
-//   //     case GenomeCode.MoveAndEat:
-//   //     case GenomeCode.Photosynthesize:
-//   //     case GenomeCode.Sleep:
-//   //       ++result;
-//   //   }
-//   // }
-
-//   // return Math.min(1, result);
-// }

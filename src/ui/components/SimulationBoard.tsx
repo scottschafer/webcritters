@@ -6,9 +6,14 @@ import { colorToRGBStyle } from '../../simulation-code/Colors';
 import { PhotosynthesizeGenome } from '../../simulation-code/GenomeCode';
 import { decodePoint, makePoint } from '../../simulation-code/Orientation';
 import { simulationStore } from '../SimulationUIStore';
+import { computed } from "mobx";
 
+type Props = {
+  width: number,
+  height: number
+}
 @observer
-export class SimulationBoard extends React.Component<any> {
+export class SimulationBoard extends React.Component<Props> {
 
   canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
   canvasDetailRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
@@ -18,7 +23,16 @@ export class SimulationBoard extends React.Component<any> {
     width: 512,
     height: 512,
     marginRight: 8
-  };
+  }
+
+  @computed get renderStyle() {
+    let scaleX = this.props.width / SimulationBoard.canvasStyle.width
+    let scaleY = this.props.height / SimulationBoard.canvasStyle.height
+    return ({
+      ...SimulationBoard.canvasStyle,
+      transform: `scale(${Math.min(scaleX, scaleY)})`
+    })
+  }
 
   constructor(p?: any) {
     super(p);
@@ -141,18 +155,34 @@ export class SimulationBoard extends React.Component<any> {
                 ctxDetails.lineTo(points[i].x + pixelSize / 2, points[i].y + pixelSize / 2);
               }
 
-              if (critter.photosynthesizing && genome.length > 1) {
-                ctxDetails.lineWidth += 4;
-                ctxDetails.strokeStyle = 'rgba(0,255,0,1)';
-                ctxDetails.stroke();
-                ctxDetails.lineWidth -= 4;
-              }
+              // if (critter.photosynthesizing && genome.length > 1) {
+              //   ctxDetails.lineWidth += 4;
+              //   ctxDetails.strokeStyle = 'rgba(0,255,0,1)';
+              //   ctxDetails.stroke();
+              //   ctxDetails.lineWidth -= 4;
+              // }
 
               ctxDetails.strokeStyle = colorToRGBStyle(color);
 
               ctxDetails.stroke();
               ctxDetails.closePath();
 
+              if (critter.photosynthesizing && genome.length > 1) {
+                ctxDetails.beginPath();
+                ctxDetails.strokeStyle = 'rgba(0,255,0,1)';
+
+                ctxDetails.lineWidth = pixelSize * .7;
+                let lastPoint = points[points.length - 1]
+                ctxDetails.moveTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
+
+                for (let i = 0; i < Math.min(points.length, critter.lengthPhotoCells); i++) {
+                  lastPoint = points[points.length - 1 - i]
+                  ctxDetails.lineTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
+                }
+                ctxDetails.stroke();
+                ctxDetails.closePath();
+
+              }
 
               if (critter.genome.asString !== PhotosynthesizeGenome) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
                 ctxDetails.fillStyle = 'white';
@@ -234,21 +264,21 @@ export class SimulationBoard extends React.Component<any> {
           <label>Turn: </label> {simulationStore.turn}
         </Grid>
         <Grid item xs={true}>
-            <canvas
-              ref={this.canvasRef}
-              width={simulationStore.config.width} height={simulationStore.config.height}
-              style={SimulationBoard.canvasStyle}
-              onMouseDown={this.handleMouseDownBoard}
-              onMouseUp={this.handleMouseUpBoard}
-              onMouseMove={this.handleMouseMoveBoard}
-            ></canvas>
-            <canvas
-              ref={this.canvasDetailRef}
-              onMouseMove={this.handleMouseMoveDetails}
-              width={simulationStore.config.width} height={simulationStore.config.height}
-              style={SimulationBoard.canvasStyle}
-            ></canvas>
-          </Grid>
+          <canvas
+            ref={this.canvasRef}
+            width={simulationStore.config.width} height={simulationStore.config.height}
+            style={this.renderStyle}
+            onMouseDown={this.handleMouseDownBoard}
+            onMouseUp={this.handleMouseUpBoard}
+            onMouseMove={this.handleMouseMoveBoard}
+          ></canvas>
+          <canvas
+            ref={this.canvasDetailRef}
+            onMouseMove={this.handleMouseMoveDetails}
+            width={simulationStore.config.width} height={simulationStore.config.height}
+            style={SimulationBoard.canvasStyle}
+          ></canvas>
+        </Grid>
       </Grid>
     )
   }

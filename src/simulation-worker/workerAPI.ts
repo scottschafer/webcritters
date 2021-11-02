@@ -2,13 +2,15 @@
 import { wrap } from 'comlink';
 import { SharedData } from '../common/SharedData';
 import { WorldSummary } from '../common/WorldSummary';
+import { GenealogyReport } from '../common/GenealogyReport';
 import { SimulationSettings } from '../simulation-code/SimulationSettings';
 import {
   init,
   takeTurn,
   getSummary,
   updateSettings,
-  getDetail
+  getDetail,
+  getGenealogyReport
 } from "../simulation-code/simulation";
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
@@ -20,7 +22,7 @@ interface WorkerAPI {
   updateSettings(settings: SimulationSettings);
   takeTurn(numTurns: number): Promise<number>;
   getSummary(): Promise<WorldSummary>;
-  getSummary(): Promise<WorldSummary>;
+  getGenealogyReport(): Promise<GenealogyReport>;
   getDetail(follow: FollowingDetails, dimension: number): Promise<WorldDetails>;
 }
 
@@ -40,12 +42,16 @@ export const workerAPI: WorkerAPI =
       const getDetailReturnPromise = (follow: FollowingDetails, dimension = 32) => {
         return new Promise<WorldDetails>(resolve => { resolve(getDetail(follow, dimension)) })
       };
+      const getGenealogyReportPromise = () => {
+        return new Promise<GenealogyReport>(resolve => { resolve(getGenealogyReport()) })
+      };
       return {
         init,
         updateSettings,
         takeTurn: takeTurnReturnPromise,
         getSummary: getSummaryReturnPromise,
-        getDetail: getDetailReturnPromise
+        getDetail: getDetailReturnPromise,
+        getGenealogyReport: getGenealogyReportPromise
       };
     }
   })();

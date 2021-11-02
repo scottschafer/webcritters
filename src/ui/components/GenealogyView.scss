@@ -1,0 +1,27 @@
+.GenealogyView {
+  overflow: auto;
+  padding-bottom: 20px;
+  .row {
+    text-align: center;
+  }
+  .critter {
+    border: 1px black solid;
+  }
+
+  .genome {
+    color: black;
+    font-weight: bold;
+    // border: 1px black solid;
+    // border-radius: 8px;
+    // width: 200px;
+    // -webkit-box-shadow: 5px 5px 15px 0px rgba(0,0,0,0.89); 
+    // box-shadow: 5px 5px 15px 0px rgba(0,0,0,0.89);
+    // position: relative;
+  }
+
+  .extinct {
+    text-decoration: line-through;
+    color: gray! important;
+    font-style: italic;
+  }
+}

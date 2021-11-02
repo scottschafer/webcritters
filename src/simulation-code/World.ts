@@ -1,6 +1,7 @@
 import { colors } from '@material-ui/core';
 import { settings } from 'cluster';
 import { FollowingDetails } from '../common/FollowingDetails';
+import { GenealogyReport } from '../common/GenealogyReport';
 import { SharedData } from '../common/SharedData';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
@@ -8,7 +9,7 @@ import { WorldSummary } from '../common/WorldSummary';
 import { ColorBlack, ColorDeathRay, ColorGray, ColorGreen } from './Colors';
 import { Critter } from './Critter';
 import { Genome } from './Genome';
-import { PhotosynthesizeGenome } from './GenomeCode';
+import { GenomeCodeInfo, PhotosynthesizeGenome } from './GenomeCode';
 import { genomeStore } from './GenomeStore';
 import { globals, Globals } from './Globals';
 import { makePoint, Orientation } from './Orientation';
@@ -192,7 +193,7 @@ export class World {
     });
 
     // spawn some critters;
-    for (let i = 0; i < countToInsert; i++) { // SimulationConstants.maxCritters / 10; i++) {
+    for (let i = 0; i < SimulationConstants.initialPhotosynthesizeCritterCount; i++) { // SimulationConstants.maxCritters / 10; i++) {
       const pos = this.findEmptyPos();
       // if (i < 1 && SimulationConstants.insertEvolvedCritter) {
       //   this.spawn(SimulationConstants.insertEvolvedCritter, pos, false);
@@ -234,6 +235,7 @@ export class World {
                 critter.energy /= 2;
                 ++critter.spawnedCount;
                 newCritter.sleepCount = globals.settings.sleepAfterSpawnCount;
+                newCritter.energy += globals.settings.turnCost * globals.settings.sleepAfterSpawnCount;
                 if (newCritter.length > 1) {
                   newCritter.orientation = critter.orientation;
                 }
@@ -264,12 +266,12 @@ export class World {
           let xStart = 0, xStep = 1;
           let yStart = 16, yStep = 32;
           for (let y = yStart; y < 256; y += yStep) {
-             for (let x = xStart; x < 256; x += xStep) {
-               const point = y * 256 + x;
-               const critter = this.getCritterAtPos(point);
+            for (let x = xStart; x < 256; x += xStep) {
+              const point = y * 256 + x;
+              const critter = this.getCritterAtPos(point);
               if (critter) {
                 critter.energy = -1000;
-              }                           
+              }
               globals.pixelArray[point] = ColorDeathRay;
               // globals.setPixel(point, ColorDeathRay);
             }
@@ -417,7 +419,7 @@ export class World {
       critter.init(genome, point, globals);
       result = critter;
 
-      globals.setPixel(point, critter.color, critterIndex);
+      // globals.setPixel(point, critter.color, critterIndex);
     }
     if (result) {
       result.energy = result.spawnEnergy / 2;
@@ -440,6 +442,292 @@ export class World {
     }
     critter.genome = null;
     this.emptyCritterSlots[++this.emptyCritterSlotIndex] = iCritter;
+  }
+
+  getGenealogyReport() {
+    const mapGenomeToReport: { [genome: string]: GenealogyReport } = {};
+
+    const genomeToAncestors: { [genome: string]: Set<string> } = {};
+    const genomeToDescendants: { [genome: string]: Set<string> } = {};
+
+    const sortedGenomes = Object.values(genomeStore.genomeInfo).sort((a, b) => (b.count - a.count));
+
+    const ignoreGenome = (genome: string) => {
+      if (genome.length === 1 && genome !== 'P' && genome !== 'E') {
+        return true;
+      }
+      return false;
+    }
+
+    const registerGenome = (genome: string, ancestor: string) => {
+      if (ignoreGenome(genome)) {
+        return;
+      }
+      if (!genomeToDescendants[ancestor]) {
+        genomeToDescendants[ancestor] = new Set<string>()
+      }
+      genomeToDescendants[ancestor].add(genome)
+
+      if (ancestor) {
+        if (!genomeToAncestors[genome]) {
+          genomeToAncestors[genome] = new Set<string>()
+        }
+        genomeToAncestors[genome].add(ancestor);
+      }
+    }
+
+    for (let i = 0; i < Math.min(sortedGenomes.length, 10); i++) {
+      const genomeInfo = sortedGenomes[i];
+      let genome = genomeInfo.asString;
+      if (ignoreGenome(genome)) {
+        continue;
+      }
+
+      if (genomeInfo.ancestors) {
+        const ancestorArray = genomeInfo.ancestors.split(',');
+
+        // if the ancestor chain is like P, PE, P, mP, then clean up so it's like P, mP to prevent recursion
+        const ancestorIndexMap: { [genome: string]: number } = {}
+        for (let i = 0; i < ancestorArray.length; i++) {
+          const ancestor = ancestorArray[i]
+          if (ancestor === genome) {
+            ancestorArray.splice(i - 1, ancestorArray.length - i + 1)
+            break;
+          }
+
+          if (ancestorIndexMap[ancestor] === undefined) {
+            ancestorIndexMap[ancestor] = i;
+          } else {
+            ancestorArray.splice(ancestorIndexMap[ancestor], i - ancestorIndexMap[ancestor])
+            i = ancestorIndexMap[ancestor]
+          }
+        }
+
+        for (let i = ancestorArray.length - 1; i >= 0; i--) {
+          const ancestor = ancestorArray[i];
+          registerGenome(genome, ancestor);
+          genome = ancestor;
+        }
+      }
+    }
+
+    const addGenomeAndDescendants = (genome: string, ancestor?: string, depth = 0) => {
+      if (depth > 50) {
+        debugger
+        return
+      }
+      const genomeInfo = genomeStore.genomeInfo[genome];
+      //   if (!genomeInfo) {
+      //     // presumably this genome is extinct
+      //   } else {
+      //     report.color = genomeInfo.color;
+      //     report.currentCount = genomeInfo.count;
+      //     report.firstAppeared = genomeInfo.firstTurn;
+
+      const result = mapGenomeToReport[genome] = {
+        ancestor: ancestor,
+        genome,
+        color: genomeInfo?.color ?? ColorBlack,
+        currentCount: genomeInfo?.count ?? 0,
+        firstAppeared: genomeInfo?.firstTurn ?? -1,
+        lastAppeared: -1,
+        descendants: []
+      }
+
+      const descendants = genomeToDescendants[genome]
+      if (descendants) {
+        descendants.forEach(descendant => {
+          result.descendants.push(addGenomeAndDescendants(descendant, genome, depth + 1))
+        })
+      }
+      return result;
+    }
+    addGenomeAndDescendants('P')
+
+    return mapGenomeToReport['P']
+
+  }
+
+  getGenealogyReport2() {
+    const map: { [genome: string]: GenealogyReport } = {};
+
+    let result: GenealogyReport = {} as GenealogyReport;
+    // return result;
+
+    // const addGenomeAndAncestors = (genome: string, addChild?: GenealogyReport) => {
+    //   if (genome.length === 1 && genome !== 'P' && genome !== 'E') {
+    //     // skip non-viable single celled genomes, as they add clutter
+    //     return;
+    //   }
+    //   let report: GenealogyReport = map[genome] ?? {
+    //     genome: genome,
+    //     color: ColorBlack,
+    //     currentCount: 0,
+    //     firstAppeared: -1,
+    //     lastAppeared: -1,
+    //     descendants: []
+    //   };
+
+    //   if (addChild) {
+    //     report.descendants.push(addChild)
+    //   }
+    //   const genomeInfo = genomeStore.genomeInfo[genome];
+    //   if (!genomeInfo) {
+    //     // presumably this genome is extinct
+    //   } else {
+    //     report.color = genomeInfo.color;
+    //     report.currentCount = genomeInfo.count;
+    //     report.firstAppeared = genomeInfo.firstTurn;
+
+    //     const { ancestors } = genomeInfo;
+    //     if (ancestors) {
+    //       const ancestorArray = ancestors.split(',')
+
+    //       for (let i = ancestorArray.length - 1; i >= 0; i--) {
+    //         const parentGenome = ancestorArray[i];
+    //         let parentReport = report;
+    //         parentReport = addGenomeAndAncestors(parentGenome, parentReport)
+    //       }
+    //     } else {
+    //       result = report
+    //     }
+    //   }
+
+    //   map[genome] = report;
+    //   return report
+    // };
+
+    const sortedGenomes = Object.values(genomeStore.genomeInfo)
+      .sort((a, b) => (b.count - a.count));
+
+
+    for (let i = 0; i < Math.min(sortedGenomes.length, 5); i++) {
+
+      const addToMap = (genomeStr: string, ancestor: string) => {
+
+        if (genomeStr === ancestor) {
+          debugger
+        }
+
+        let testCircularCount = 0;
+        let testNode = map[genomeStr];
+        while (testNode) {
+          testNode = map[testNode.ancestor];
+          ++testCircularCount;
+          if (testCircularCount > (genomeStr.length * 2)) {
+            debugger;
+            return;
+          }
+        }
+
+        const genomeInfo = genomeStore.genomeInfo[genomeStr];
+
+        // if we're adding a genome, and we had previously added this genome as an extinct ancestor,
+        // then replace the extinct ancestor with this genome
+        let descendants = map[genomeStr]?.descendants ?? [];
+        if (map[genomeStr] && map[genomeStr].firstAppeared === -1 && genomeInfo) {
+          map[genomeStr] = null;
+        }
+
+        if (!map[genomeStr]) {
+          map[genomeStr] = {
+            ancestor,
+            genome,
+            color: genomeInfo?.color ?? ColorBlack,
+            currentCount: genomeInfo?.count ?? 0,
+            firstAppeared: genomeInfo?.firstTurn ?? -1,
+            lastAppeared: -1,
+            descendants
+          };
+          if (ancestor === genomeStr) {
+            debugger
+          }
+        }
+
+        if (ancestor) {
+          let ancestorNode = map[ancestor];
+          if (!ancestorNode) {
+            const ancestorInfo = genomeStore.genomeInfo[ancestor];
+            ancestorNode = {
+              ancestor: null,
+              genome,
+              color: ancestorInfo?.color ?? ColorBlack,
+              currentCount: ancestorInfo?.color ?? ColorBlack,
+              firstAppeared: ancestorInfo?.firstTurn ?? -1,
+              lastAppeared: -1,
+              descendants: [map[genomeStr]]
+            }
+            map[ancestor] = ancestorNode;
+          } else {
+            const hasDup = !!ancestorNode.descendants.find(node => (node.genome === genomeStr))
+            if (!hasDup) {
+              ancestorNode.descendants.push(map[genomeStr])
+            }
+          }
+        }
+      }
+
+      const genomeInfo = sortedGenomes[i];
+      let genome = genomeInfo.asString;
+
+      if (genomeInfo.ancestors) {
+        const ancestorArray = genomeInfo.ancestors.split(',');
+
+        // prevent the ancestor chain from being circular
+        const ancestorIndexMap: { [genome: string]: number } = {}
+        for (let i = 0; i < ancestorArray.length; i++) {
+          const ancestor = ancestorArray[i]
+          if (ancestor === genome) {
+            ancestorArray.splice(i - 1, ancestorArray.length - i + 1)
+            break;
+          }
+          if (ancestorIndexMap[ancestor] === undefined) {
+            ancestorIndexMap[ancestor] = i;
+          } else {
+            debugger
+            ancestorArray.splice(ancestorIndexMap[ancestor], i - ancestorIndexMap[ancestor])
+            i = ancestorIndexMap[ancestor]
+          }
+        }
+
+        for (let i = ancestorArray.length - 1; i >= 0; i--) {
+          const ancestor = ancestorArray[i];
+          addToMap(genome, ancestor);
+          genome = ancestor;
+        }
+      } else {
+        addToMap(genome, null)
+      }
+
+      // const addToMap2 = (genomeStr: string) => {
+      //   const genome = genomeStore.genomeInfo[genomeStr]
+      //   let report = map[genomeStr]
+      //   if (report) {
+      //     if (report.firstAppeared === -1) {
+      //       // was an extinct ancestor ?
+
+      //     }
+      //   } else {
+
+      //   }
+      //   if (!report) {
+      //     report = {
+      //       genome: genomeInfo.asString,
+      //       color: ColorBlack,
+      //       currentCount: 0,
+      //       firstAppeared: -1,
+      //       lastAppeared: -1,
+      //       descendants: []
+      //     }
+      //   } else {
+      //     if ()
+      //   }
+      // }
+      // addGenomeAndAncestors(sortedGenomes[i].asString)
+    }
+    return map['P']
+    // console.log(result)
+    // return result as GenealogyReport;
   }
 
 }

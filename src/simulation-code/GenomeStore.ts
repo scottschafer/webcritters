@@ -64,7 +64,7 @@ class GenomeStore {
   private initNewGenome(genome: Genome) {
 
     const colors = GenomeColors;
-    console.log(colors.length);
+    // console.log(colors.length);
 
     let color = ColorGreen;
     if (genome.asString !== PhotosynthesizeGenome) {
@@ -91,7 +91,7 @@ class GenomeStore {
         }
       }
     }
-    const colorPhotosynthesizing = blendColors(color, ColorGreen);
+    const colorPhotosynthesizing = ColorGreen; // blendColors(color, ColorGreen);
 
     genome.color = color;
     genome.colorPhotosynthesizing = colorPhotosynthesizing;

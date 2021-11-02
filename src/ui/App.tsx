@@ -12,12 +12,14 @@ import { SummaryView } from './components/SummaryView';
 import "./App.css";
 import { Button, Container, Grid, Tab, Tabs } from '@material-ui/core';
 import { SettingsEditorAdvanced, SettingsEditorBasic } from "./components/SettingsEditor";
+import { GenealogyView } from "./components/GenealogyView";
+import ReactResizeDetector from 'react-resize-detector'
 
-
-const tabs = ['Settings', 'Advanced'];
+const tabs = ['Settings', 'Advanced', 'Genealogy'];
 enum eTabs {
   SettingsBasic,
-  SettingsAdvanced
+  SettingsAdvanced,
+  Genealogy
 };
 
 const App: React.FC = observer(() => {
@@ -48,7 +50,9 @@ const App: React.FC = observer(() => {
 
         <Grid container>
           <Grid item xs={true}>
-            <SimulationBoard></SimulationBoard>
+            <ReactResizeDetector handleWidth handleHeight>
+              {({ width, height }) => <SimulationBoard width={width} height={height}></SimulationBoard>}
+            </ReactResizeDetector>
           </Grid>
           <Grid item xs={3}>
             <SummaryView
@@ -60,40 +64,44 @@ const App: React.FC = observer(() => {
         </Grid>
 
         <Grid container direction='column' spacing={3}>
-        <Grid item xs={12}>
-        <Grid item justify='center'>
+          <Grid item xs={12}>
+            <Grid item justify='center'>
 
-          <Tabs
-            centered
-            value={selectedTab}
-            onChange={handleChangeTab}
-            indicatorColor="primary"
-            textColor="primary">
-            {tabs.map((title, i) => <Tab key={i} label={title} {...a11yProps(i)} selected={selectedTab === i} />)}
-          </Tabs>
-          </Grid>
+              <Tabs
+                centered
+                value={selectedTab}
+                onChange={handleChangeTab}
+                indicatorColor="primary"
+                textColor="primary">
+                {tabs.map((title, i) => <Tab key={i} label={title} {...a11yProps(i)} selected={selectedTab === i} />)}
+              </Tabs>
+            </Grid>
 
-          {
-            (selectedTab === eTabs.SettingsBasic) && <div>
-            <SettingsEditorBasic settings={simulationStore.settings} onChange={simulationStore.setSettings}/>
+            {(selectedTab === eTabs.SettingsBasic) && <div>
+              <SettingsEditorBasic settings={simulationStore.settings} onChange={simulationStore.setSettings} />
             </div>}
+
             {(selectedTab === eTabs.SettingsAdvanced) && <div>
-            <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings}/>
-          </div>}
-          
-          <h2>TODO:</h2>
-          <ul style={{ 'textAlign': 'left' }}>
-            <li>Separate basic and advanced settings</li>
-            <li>Info on individual settings</li>
-            <li>Genome explorer (new #1 critter)</li>
-            <li>Geneology</li>
-            <li>Load/save</li>
-            <li>Play Vs Mode</li>
-          </ul>
+              <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings} />
+            </div>}
+
+            {(selectedTab === eTabs.Genealogy) && <div>
+              <GenealogyView />
+            </div>}
+            {/* 
+            <h2>TODO:</h2>
+            <ul style={{ 'textAlign': 'left' }}>
+              <li>Separate basic and advanced settings</li>
+              <li>Info on individual settings</li>
+              <li>Genome explorer (new #1 critter)</li>
+              <li>Genealogy</li>
+              <li>Load/save</li>
+              <li>Play Vs Mode</li>
+            </ul> */}
+          </Grid>
         </Grid>
-        </Grid>
-        </Grid>
-      </div >
+      </Grid>
+    </div >
   );
 });
 

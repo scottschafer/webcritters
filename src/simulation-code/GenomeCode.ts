@@ -7,6 +7,7 @@ export enum GenomeCode {
   Sleep, // = 'Z',
   Hypermode, // = 'H',
   Spawn, // = 'S',
+  Flip, // = 'F',
 
   TurnLeft, // = '<',
   TurnRight, // = '>',
@@ -22,8 +23,11 @@ export enum GenomeCode {
   TestBlocked, // = '2',
   TestBitten, // = '3',
   TestSpawned, // = '4',
-  TestTimer1, // = '5',
-  TestTimer2, // = '6',
+  TestTimer1, // = 'xx 5',
+  TestTimer2, // = 'xx 6',
+  TestLeftSide, // = '5',
+  TestTopSide, // = 'xxx 6,
+  TestFailed, // = '6'
   TestUnfolded, // = '7',
   TestTurn, // = '8',
   TestTouchingRelative, // = '9',
@@ -31,6 +35,7 @@ export enum GenomeCode {
   IfCondition, // = '?',
   IfNotCondition, // = '!',
   Else, // = 'e',
+  And, // = '&'
 
   Restart, // = '*',
   Reverse, // = 'r',
@@ -63,6 +68,7 @@ export const GenomeCodeToInfoMap: {
   },
   [GenomeCode.StopPhotosynthesize]: {
     char: 'p',
+    disabled: false,
     numCycles: 1,
     name: 'Stop Photosynthesis',
     description: 'Stop Photosynthesis'
@@ -75,7 +81,7 @@ export const GenomeCodeToInfoMap: {
   },
   [GenomeCode.Eat]: {
     char: 'E',
-    numCycles: 5,
+    numCycles: 10,
     name: 'Eat',
     description: 'Eat in front of head'
   },
@@ -99,6 +105,15 @@ export const GenomeCodeToInfoMap: {
     numCycles: 1,
     name: 'Spawn',
     description: 'Force spawning'
+  },
+
+
+  [GenomeCode.Flip]: {
+    char: 'F',
+    disabled: true,
+    numCycles: 1,
+    name: 'Flip',
+    description: 'Flip'
   },
 
   [GenomeCode.TurnLeft]: {
@@ -139,7 +154,7 @@ export const GenomeCodeToInfoMap: {
   },
   [GenomeCode.SetTimer1]: {
     char: 'x',
-    disabled: false,
+    disabled: true,
     numCycles: 1,
     name: '',
     description: 'Set timer 1'
@@ -164,7 +179,6 @@ export const GenomeCodeToInfoMap: {
     numCycles: 5,
     name: '',
     description: 'Test see food (double sight distance)',
-    disabled: false
   },
 
   [GenomeCode.TestBlocked]: {
@@ -187,20 +201,39 @@ export const GenomeCodeToInfoMap: {
     name: '',
     description: 'Test spawned'
   },
-  [GenomeCode.TestTimer1]: {
+  [GenomeCode.TestLeftSide]: {
     char: '5',
-    disabled: false,
     numCycles: 1,
     name: '',
-    description: 'Test Timer1'
+    description: 'Test on Left Side'
   },
-  [GenomeCode.TestTimer2]: {
+  // [GenomeCode.TestTopSide]: {
+  //   char: '6',
+  //   numCycles: 1,
+  //   name: '',
+  //   description: 'Test on Top Side'
+  // },
+  [GenomeCode.TestFailed]: {
     char: '6',
-    disabled: true,
-    numCycles: 1,
+    numCycles: 0,
     name: '',
-    description: 'Test Timer2'
+    description: 'Test failed'
   },
+
+  // [GenomeCode.TestTimer1]: {
+  //   char: '5',
+  //   disabled: true,
+  //   numCycles: 1,
+  //   name: '',
+  //   description: 'Test Timer1'
+  // },
+  // [GenomeCode.TestTimer2]: {
+  //   char: '6',
+  //   disabled: true,
+  //   numCycles: 1,
+  //   name: '',
+  //   description: 'Test Timer2'
+  // },
   [GenomeCode.TestUnfolded]: {
     char: '7',
     disabled: false,
@@ -231,6 +264,7 @@ export const GenomeCodeToInfoMap: {
   },
   [GenomeCode.IfNotCondition]: {
     char: '!',
+    disabled: true,
     numCycles: 0,
     name: '',
     description: 'If not'
@@ -240,6 +274,12 @@ export const GenomeCodeToInfoMap: {
     numCycles: 0,
     name: '',
     description: 'Else'
+  },
+  [GenomeCode.And]: {
+    char: '&',
+    numCycles: 0,
+    name: '',
+    description: 'And'
   },
 
   [GenomeCode.Restart]: {
@@ -259,7 +299,7 @@ export const GenomeCodeToInfoMap: {
 
   [GenomeCode.NextMarker]: {
     char: ']',
-    disabled: true,
+    disabled: false,
     numCycles: 0,
     name: '',
     description: 'Next marker'
@@ -292,6 +332,7 @@ export const GenomeCodeToInfoMap: {
 
   [GenomeCode.GoToA]: {
     char: 'A',
+    disabled: true,
     numCycles: 0,
     name: '',
     description: 'Go to A'

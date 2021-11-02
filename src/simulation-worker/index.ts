@@ -4,7 +4,8 @@ import {
   takeTurn,
   getSummary,
   updateSettings,
-  getDetail
+  getDetail,
+  getGenealogyReport
 } from "../simulation-code/simulation";
 
 const exports = {
@@ -12,7 +13,8 @@ const exports = {
   takeTurn,
   getSummary,
   updateSettings,
-  getDetail
+  getDetail,
+  getGenealogyReport
 };
 export type SimulationWorker = typeof exports;
 

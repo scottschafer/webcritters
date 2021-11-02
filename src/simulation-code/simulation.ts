@@ -26,3 +26,7 @@ export function getDetail(follow: FollowingDetails, dimension = 32) {
 export function updateSettings(settings: SimulationSettings) {
   gWorld.updateSettings(settings);
 }
+
+export function getGenealogyReport() {
+  return gWorld.getGenealogyReport();
+}
