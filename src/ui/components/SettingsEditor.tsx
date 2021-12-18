@@ -26,7 +26,11 @@ import { ValuesEditorPanel, ValuesEditorPanelFieldDefs } from './ValuesEditorPan
 
 
 const settingsFieldsBasic: ValuesEditorPanelFieldDefs = [
-
+  {
+    label: 'Follow selection',
+    fieldName: 'followSelection',
+    type: 'boolean'
+  },
   {
     label: 'Speed',
     fieldName: 'speed',
@@ -47,14 +51,13 @@ const settingsFieldsBasic: ValuesEditorPanelFieldDefs = [
     minValue: 0,
     maxValue: 50
   },
-
-  {
-    label: 'Death rays',
-    fieldName: 'deathRays',
-    type: 'range',
-    minValue: 0,
-    maxValue: 4
-  },
+  // {
+  //   label: 'Death rays',
+  //   fieldName: 'deathRays',
+  //   type: 'range',
+  //   minValue: 0,
+  //   maxValue: 4
+  // },
 
 ];
 

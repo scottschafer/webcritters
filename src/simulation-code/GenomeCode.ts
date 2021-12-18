@@ -4,6 +4,7 @@ export enum GenomeCode {
   StopPhotosynthesize, // = 'p',
   Move, // = 'm',
   Eat, // = 'E',
+  EatOther, // = 'e',
   Sleep, // = 'Z',
   Hypermode, // = 'H',
   Spawn, // = 'S',
@@ -19,7 +20,7 @@ export enum GenomeCode {
   SetTimer2, // = 'y',
 
   TestSeeFood, // = '0',
-  TestSeeFoodX2, // = '1',
+  TestSeeRelative, // = '1',
   TestBlocked, // = '2',
   TestBitten, // = '3',
   TestSpawned, // = '4',
@@ -34,7 +35,7 @@ export enum GenomeCode {
 
   IfCondition, // = '?',
   IfNotCondition, // = '!',
-  Else, // = 'e',
+  Else, // = '!',
   And, // = '&'
 
   Restart, // = '*',
@@ -83,6 +84,13 @@ export const GenomeCodeToInfoMap: {
     char: 'E',
     numCycles: 10,
     name: 'Eat',
+    description: 'Eat in front of head'
+  },
+  [GenomeCode.EatOther]: {
+    char: 'e',
+    disabled: true,
+    numCycles: 10,
+    name: 'Eat other',
     description: 'Eat in front of head'
   },
   [GenomeCode.Sleep]: {
@@ -174,11 +182,11 @@ export const GenomeCodeToInfoMap: {
     description: 'Test see food'
   },
 
-  [GenomeCode.TestSeeFoodX2]: {
+  [GenomeCode.TestSeeRelative]: {
     char: '1',
     numCycles: 5,
     name: '',
-    description: 'Test see food (double sight distance)',
+    description: 'Test see food (ignoring relatives)',
   },
 
   [GenomeCode.TestBlocked]: {
@@ -262,15 +270,15 @@ export const GenomeCodeToInfoMap: {
     name: '',
     description: 'If'
   },
-  [GenomeCode.IfNotCondition]: {
-    char: '!',
-    disabled: true,
-    numCycles: 0,
-    name: '',
-    description: 'If not'
-  },
+  // [GenomeCode.IfNotCondition]: {
+  //   char: '!',
+  //   disabled: true,
+  //   numCycles: 0,
+  //   name: '',
+  //   description: 'If not'
+  // },
   [GenomeCode.Else]: {
-    char: 'e',
+    char: '!',
     numCycles: 0,
     name: '',
     description: 'Else'

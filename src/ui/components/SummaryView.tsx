@@ -13,6 +13,7 @@ interface SummaryViewProps {
   readonly summary: WorldSummary;
   readonly selectedGenome: string;
   readonly selectedGenomeIndex: number;
+  readonly turn: number;
 
   onSelectGenome(genome: string);
 }
@@ -39,56 +40,68 @@ export class SummaryView extends React.Component<SummaryViewProps> {
   };
 
   render() {
-    const { summary, selectedGenome } = this.props;
+    const { summary, selectedGenome, turn } = this.props;
     if (!summary) {
       return null;
     }
 
-    const topGenomes = summary.topGenomes.slice(0,14);
+    const topGenomes = summary.topGenomes.slice(0, 10);
+    if (!topGenomes.find((genome) => (genome.genome === selectedGenome))) {
+      setTimeout(() => {
+        this.props.onSelectGenome(topGenomes[0].genome);
+      });
+    }
     return (
-      <Grid container className='SummaryView'>
-        <Grid item xs={12}>
-          Total critters: {summary.totalCritters}
-        </Grid>
-        <Grid item xs={12}>
-          Top genomes:
+      <div className='SummaryView'>
+        <Grid container>
+          <Grid item xs={12}>
+            Total critters: {summary.totalCritters}, Turn # {turn}
           </Grid>
-        <Grid item xs={12}>
-          <table>
-            <tbody>
-              {topGenomes.map(genome => (
-                <tr
-                  data-tip data-for={genome.genome}
-                  data-genome={genome.genome}
-                  key={genome.genome}
-                  onClick={this.handleClickSelectGenome}
-                  className={`genome-row ${(genome.genome === selectedGenome) ? 'selected-genome' : ''}`}>
-                  <td>
-                    {genome.count}
-                  </td>
-                  <td>
-                    <div style={getStyleSwatchForGenome(genome.color)}></div>
-                  </td>
-                  <td>
-                    {genome.genome}
-                    <ReactTooltip
-                      afterShow={simulationStore.handleShowTooltip}
-                      afterHide={simulationStore.handleHideTooltip}
-                      id={genome.genome} className='genome-tooltip' place='bottom' effect='solid'>
-                      <h3>{genome.genome}</h3>
-                      <GenomeCodeList genome={genome.genome} />
-                    </ReactTooltip>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Grid>
+          <Grid item xs={12} className='top-genome-label'>
+            Top genomes:
+          </Grid>
+          <Grid item xs={12}>
+            <table>
+              <tbody>
+                {topGenomes.map(genome => (<>
+                  <tr
+                    data-tip data-for={genome.genome}
+                    data-genome={genome.genome}
+                    key={genome.genome}
+                    onClick={this.handleClickSelectGenome}
+                    className={`genome-row ${(genome.genome === selectedGenome) ? 'selected-genome' : ''}`}>
+                    {/* <td>
+                      {genome.count}
+                    </td> */}
+                    <td>
+                      <div style={getStyleSwatchForGenome(genome.color)}></div>
+                    </td>
+                    <td>
+                      {genome.genome}
+                      {(genome.genome === selectedGenome) &&
+                        <GenomeCodeList genome={selectedGenome} />}
+                      {/* <ReactTooltip
+                        afterShow={simulationStore.handleShowTooltip}
+                        afterHide={simulationStore.handleHideTooltip}
+                        id={genome.genome} className='genome-tooltip' place='bottom' effect='solid'>
+                        <h3>{genome.genome}</h3>
+                        <GenomeCodeList genome={genome.genome} />
+                      </ReactTooltip> */}
+                    </td>
+                    <td>#{genome.count}</td>
+                  </tr>
+                </>
 
-        {false && summary.topGenomes.length &&
-          <GenomeCodeList genome={summary.topGenomes[0].genome} />}
-        {/* </div> */}
-      </Grid>
+                ))}
+              </tbody>
+            </table>
+          </Grid>
+          {/* 
+          {true && summary.topGenomes.length &&
+            <GenomeCodeList genome={summary.topGenomes[0].genome} />}
+          </div> */}
+        </Grid>
+      </div>
     )
   }
 }

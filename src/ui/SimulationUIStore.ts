@@ -1,17 +1,20 @@
 import { action, computed, makeObservable, observable, toJS } from 'mobx';
 import { FollowingDetails } from '../common/FollowingDetails';
 import { GenealogyReport } from '../common/GenealogyReport';
-import { SharedData } from '../common/SharedData';
 import { SimulationConfig } from '../common/SimulationConfig';
 import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
+import { persistence } from '../simulation-code/Persistence';
 import { SimulationSettings } from '../simulation-code/SimulationSettings';
-import { workerAPI } from '../simulation-worker/workerAPI';
+import { World } from '../simulation-code/World';
+import { decodePoint } from '../simulation-code/Orientation';
+
+// import { this.world } from '../simulation-worker/this.world';
 
 
 class SimulationUIStore {
-  sharedArrayBufferUint8Array: Uint8Array;
+  // sharedArrayBufferUint8Array: Uint8Array;
   @observable.ref settings = new SimulationSettings();
   @observable.ref summary: WorldSummary = null;
   @observable.ref genealogyReport: GenealogyReport = null;
@@ -28,22 +31,8 @@ class SimulationUIStore {
   lastGetGenealogyTurn = 0;
   runningAtFullSpeed = false;
   isTakingTurn = false;
+  world: World;
 
-  sharedData: SharedData = {
-    canvasBuffer: new SharedArrayBuffer(SimulationConstants.worldDim * SimulationConstants.worldDim * 4),
-    // cellsData: {
-    //   x_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
-    //   y_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2),
-    //   colors_u32: new SharedArrayBuffer(SimulationConstants.maxCells * 4),
-    //   nextCell_u16: new SharedArrayBuffer(SimulationConstants.maxCells * 2)
-    // },
-    // crittersData: {
-    //   firstCellIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
-    //   genomeIndex_u16: new SharedArrayBuffer(SimulationConstants.maxCritters * 2),
-    //   energy_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
-    //   orientation_u8: new SharedArrayBuffer(SimulationConstants.maxCritters),
-    // }
-  };
 
   started = false;
 
@@ -65,9 +54,10 @@ class SimulationUIStore {
   }
 
   @action.bound setSettings(value: SimulationSettings) {
+    const oldValue = JSON.parse(JSON.stringify(this.settings))
     this.settings = value;
 
-    workerAPI.updateSettings(value);
+    this.world.updateSettings(oldValue);
   }
 
   @computed get delay() {
@@ -77,9 +67,9 @@ class SimulationUIStore {
     } else {
       let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
       result = delay * delay * delay * 100;
-      if (!SimulationConstants.useWorker) {
-        result = Math.max(1, result);
-      }
+      // if (!SimulationConstants.useWorker) {
+      result = Math.max(1, result);
+      // }
     }
 
     return result;
@@ -88,16 +78,22 @@ class SimulationUIStore {
 
   constructor() {
     makeObservable(this);
-    this.sharedArrayBufferUint8Array = new Uint8Array(this.sharedData.canvasBuffer);
+    // this.sharedArrayBufferUint8Array = new Uint8Array(this.world.canvasBuffer);
+    setTimeout(() => {
+      persistence.load()
+      this.startSimulation()
+    })
   }
 
   startSimulation() {
     if (this.started) {
       return;
     }
+    this.world = new World()
+    this.world.reset();
     this.started = true;
     console.log('startSimulation');
-    workerAPI.init(this.sharedData, toJS(this.settings));
+    // this.world.init(this.sharedData, toJS(this.settings));
 
     this.runTurnLoop();
   }
@@ -124,50 +120,91 @@ class SimulationUIStore {
 
   takeTurn = () => {
 
+    const { settings } = this;
     this.isTakingTurn = true;
     this.lastTurnTime = new Date().getTime();
-    workerAPI.takeTurn(this.runningAtFullSpeed ? 10 : 1).then(result => {
-      this.isTakingTurn = false;
-      this.setTurn(result);
-      // this.runTurnLoop();
+    const turnsToTake = (this.settings.speed === 11) ? 10 : 1
 
-      if (this.settings.showPreview && ((result - this.lastGetSummaryTurn) > 100)) {
-        this.lastGetSummaryTurn = result;
-        //        console.log('calling getSummary because turn is %d', result);
-        workerAPI.getSummary().then(result => {
-          this.setSummary(result);
-        });
+    let selectedCritter = null;
+    let selectedCritterGenome = null
+    if (this.settings.followSelection && this.following.followingIndex >= 0) {
+      selectedCritter = this.world.critters[this.following.followingIndex];
+      selectedCritterGenome = selectedCritter?.genome;
+      if (selectedCritterGenome?.asString.includes('M') || selectedCritterGenome?.asString.includes('m')) {
+        const headPoint = decodePoint(selectedCritter.cellPositions[0]);
+        this.following.x = headPoint.x - settings.magnifierSize / 2;
+        this.following.y = headPoint.y - settings.magnifierSize / 2;
       }
-
-
-      if ((result - this.lastGetGenealogyTurn) > 3000) {
-        this.lastGetGenealogyTurn = result;
-        workerAPI.getGenealogyReport().then(result => {
-          this.setGenealogyReport(result);
+    }
+    const turn = this.world.takeTurn(turnsToTake); //.then(result => {
+    if (this.settings.followSelection) {
+      if (selectedCritter) {
+        if (selectedCritter.isDead || this.selectedGenome !== selectedCritter.genome?.asString) {
+          selectedCritter = null;
+        }
+      }
+      if (!selectedCritter) {
+        let followIndex = -1;
+        let maxEnergy = -1;
+        this.world.critters.forEach((critter, index) => {
+          if (!critter.isDead && critter.genome.asString === this.selectedGenome) {
+            if (critter.energy > maxEnergy) {
+              maxEnergy = critter.energy;
+              followIndex = index;
+              selectedCritterGenome = critter.genome
+            }
+          }
         })
+        if (followIndex >= 0) {
+          this.following.followingIndex = followIndex;
+          this.following.followingGenome = selectedCritterGenome.asString;
+        }
       }
+    }
+
+    this.setDetail(this.world.getDetail(this.following, settings.magnifierSize))
+
+    //    this.world.getDetail(this.following, settings.magnifierSize)
+    this.isTakingTurn = false;
+    this.setTurn(turn);
+    // this.runTurnLoop();
+
+    this.setSummary(this.world.getSummary())
 
 
-      const currentTime = new Date().getTime();
-      const elapsedDetailTime = currentTime - this.lastGetDetailTime;
-      if (this.settings.showPreview && elapsedDetailTime > (1000 / 20)) {
-        this.lastGetDetailTime = currentTime;
-        //        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
-        workerAPI.getDetail(this.following, 32).then(result => {
-          this.setDetail(result);
-        });
-      }
+    if (this.settings.showPreview && ((turn - this.lastGetSummaryTurn) > 100)) {
+      this.lastGetSummaryTurn = turn;
+      //        console.log('calling getSummary because turn is %d', result);
+      this.setSummary(this.world.getSummary())
+    }
+
+
+    if ((turn - this.lastGetGenealogyTurn) > 3000) {
+      this.lastGetGenealogyTurn = turn;
+      this.setGenealogyReport(this.world.getGenealogyReport())
+    }
+
+
+    const currentTime = new Date().getTime();
+    const elapsedDetailTime = currentTime - this.lastGetDetailTime;
+    // if (this.settings.showPreview && elapsedDetailTime > (1000 / 20)) {
+    this.lastGetDetailTime = currentTime;
+    //        console.log('calling getDetail because currentTime - this.lastGetDetailTime is %d', elapsedDetailTime);
+    // this.setDetail(this.world.getDetail(this.following, settings.magnifierSize))
+    // }
 
 
 
-      if (!this.delay) {
-        this.runningAtFullSpeed = true;
-        this.takeTurn();
-      } else {
-        this.runningAtFullSpeed = false;
-      }
-    });
+    // if (!this.delay) {
+    //   this.runningAtFullSpeed = true;
+    //   this.takeTurn();
+    // } else {
+    //   this.runningAtFullSpeed = false;
+    // }
 
+    if (!(simulationStore.turn % 1000)) {
+      persistence.save()
+    }
   }
 
   runTurnLoop = () => {

@@ -6,15 +6,20 @@ import { colorToRGBStyle } from '../../simulation-code/Colors';
 import { PhotosynthesizeGenome } from '../../simulation-code/GenomeCode';
 import { decodePoint, makePoint } from '../../simulation-code/Orientation';
 import { simulationStore } from '../SimulationUIStore';
-import { computed } from "mobx";
+import { computed, observable } from "mobx";
+import { SettingsEditorAdvanced, SettingsEditorBasic } from "./SettingsEditor";
+
+import './SimulationBoard.scss'
 
 type Props = {
-  width: number,
-  height: number
 }
 @observer
 export class SimulationBoard extends React.Component<Props> {
 
+  @observable width = window.innerWidth;
+  @observable height = window.innerHeight;
+
+  componentRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
   canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
   canvasDetailRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
   mouseDownInBoard = false;
@@ -22,20 +27,55 @@ export class SimulationBoard extends React.Component<Props> {
   static readonly canvasStyle = {
     width: 512,
     height: 512,
+    marginRight: 0
+  }
+
+  static readonly canvasCloseupStyle = {
+    width: 256,
+    height: 256,
     marginRight: 8
   }
 
+  @computed get scale() {
+    let scaleX = this.width / SimulationBoard.canvasStyle.width
+    let scaleY = this.height / SimulationBoard.canvasStyle.height
+    return Math.min(scaleX, scaleY)
+  }
+
   @computed get renderStyle() {
-    let scaleX = this.props.width / SimulationBoard.canvasStyle.width
-    let scaleY = this.props.height / SimulationBoard.canvasStyle.height
     return ({
       ...SimulationBoard.canvasStyle,
-      transform: `scale(${Math.min(scaleX, scaleY)})`
+      transform: `scale(${this.scale})`
     })
   }
 
+  @computed get closeupStyle() {
+    const { settings } = simulationStore
+    const { magnifierSize, magnification } = settings;
+
+    let x = simulationStore.following?.x * 2 - magnifierSize * magnification / 2; // * this.scale;
+    let y = simulationStore.following?.y * 2 - magnifierSize * magnification / 2; // * this.scale;
+    // simulationStore.details?.
+    return ({
+      ...SimulationBoard.canvasCloseupStyle,
+      left: x,
+      top: y
+    })
+  }
   constructor(p?: any) {
     super(p);
+    window.addEventListener('resize', () => {
+      this.updateDims();
+    });
+  }
+
+  updateDims() {
+    // const body = document.getElementsByTagName('body')[0];
+    // this.width = body.offsetWidth;
+    // this.height = body.offsetHeight;
+
+    this.width = this.componentRef.current?.clientWidth;
+    this.height = this.componentRef.current?.clientHeight;
   }
 
   handleMouseMoveDetails = (evt: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
@@ -70,6 +110,7 @@ export class SimulationBoard extends React.Component<Props> {
   }
 
   componentDidMount() {
+    this.updateDims();
   }
 
   componentDidUpdate() {
@@ -77,7 +118,7 @@ export class SimulationBoard extends React.Component<Props> {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const byteArray = simulationStore.sharedArrayBufferUint8Array;
+        const byteArray = simulationStore.world.canvasBuffer;
         const clamped = new Uint8ClampedArray(byteArray);
         const img = new ImageData(
           clamped,
@@ -94,7 +135,7 @@ export class SimulationBoard extends React.Component<Props> {
           ctx.shadowBlur = 4;
           // ctx.shadowOffsetX = 30;
           // ctx.shadowOffsetY = 20;
-          ctx.strokeRect(simulationStore.details.x - 1, simulationStore.details.y - 1, SimulationConstants.detailsDim + 2, SimulationConstants.detailsDim + 2);
+          // ctx.strokeRect(simulationStore.details.x - 1, simulationStore.details.y - 1, SimulationConstants.detailsDim + 2, SimulationConstants.detailsDim + 2);
 
           const ctxDetails = this.canvasDetailRef.current.getContext('2d');
           // ctxDetails.imageSmoothingEnabled = false;
@@ -232,9 +273,39 @@ export class SimulationBoard extends React.Component<Props> {
     }
   }
 
+  mouseX = 0;
+  mouseY = 0;
+
+  updateMouseCoordsFromEvent(evt: React.MouseEvent<HTMLElement>) {
+    let result = false;
+    const boardRect = this.componentRef.current.getBoundingClientRect()
+
+    this.mouseX = Math.floor((evt.clientX - boardRect.left) / this.scale / 2)
+    this.mouseY = Math.floor((evt.clientY - boardRect.top) / this.scale / 2)
+
+    // console.log('evt = (' + evt.clientX + ',  ' + evt.clientY + '), mouse = (' + this.mouseX + ', ' + this.mouseY + ')')
+    // const board = this.componentRef.current
+    // const x = Math.floor(evt.clientX / this.scale / 2);
+    // const y = Math.floor(evt.clientY / this.scale / 2);
+    if (this.mouseX >= 0 && this.mouseY >= 0 && this.mouseX < SimulationConstants.worldDim && this.mouseY < SimulationConstants.worldDim) {
+      result = true;
+    }
+    return result;
+  }
+
   handleMouseDownBoard = (evt: React.MouseEvent<HTMLElement>) => {
-    this.mouseDownInBoard = true;
-    this.handleMouseMoveBoard(evt);
+    if (this.updateMouseCoordsFromEvent(evt)) {
+      this.mouseDownInBoard = true;
+      this.handleMouseMoveBoard(evt);
+    }
+    // console.log('evt.clientX = ' + evt.clientX + ', evt.clientY = ' + evt.clientY)
+    // const x = Math.floor(evt.clientX / this.scale / 2);
+    // const y = Math.floor(evt.clientY / this.scale / 2);
+    // console.log(x + "," + y)
+    // if (x >= 0 && y >= 0 && x < SimulationConstants.worldDim && y < SimulationConstants.worldDim) {
+    //   this.mouseDownInBoard = true;
+    //   this.handleMouseMoveBoard(evt);
+    // }
   }
 
   handleMouseUpBoard = (evt: React.MouseEvent<HTMLElement>) => {
@@ -242,15 +313,30 @@ export class SimulationBoard extends React.Component<Props> {
   }
 
   handleMouseMoveBoard = (evt: React.MouseEvent<HTMLElement>) => {
+    this.updateMouseCoordsFromEvent(evt);
+    const { mouseX, mouseY } = this;
+
+    const { settings } = simulationStore
     if (this.mouseDownInBoard) {
-      const rect = this.canvasRef.current.getBoundingClientRect();
-      const left = evt.clientX - rect.left;
-      const top = evt.clientY - rect.top;
+      // const newSettings = 
+      simulationStore.setSettings({ ...settings, followSelection: false });
+      // simulationStore.followMode = false;
+      const { magnifierSize } = settings;
+      // const x = Math.floor(evt.clientX / this.scale / 2 - magnifierSize / 2);
+      // const y = Math.floor(evt.clientY / this.scale / 2 - magnifierSize / 2);
+      const x = Math.floor(mouseX - magnifierSize / 2);
+      const y = Math.floor(mouseY - magnifierSize / 2);
+      console.log(`handleMouseMoveBoard: (${x}, ${y})`);
+      // // .....
+      // const rect = this.canvasRef.current.getBoundingClientRect();
+      // const left = (evt.clientX - rect.left);
+      // const top = (evt.clientY - rect.top);
+      // //      console.log(`handleMouseMoveBoard: (${left}, ${top})`)
 
-      const pixelSize = SimulationBoard.canvasStyle.width / SimulationConstants.worldDim;
+      // const pixelSize = SimulationBoard.canvasStyle.width / SimulationConstants.worldDim;
 
-      let x = Math.floor(left / pixelSize) - SimulationConstants.detailsDim / 2;
-      let y = Math.floor(top / pixelSize) - SimulationConstants.detailsDim / 2;
+      // let x = Math.floor(left / pixelSize) - SimulationConstants.detailsDim / 2;
+      // let y = Math.floor(top / pixelSize) - SimulationConstants.detailsDim / 2;
 
       simulationStore.following.x = Math.max(0, Math.min(x, SimulationConstants.worldDim));
       simulationStore.following.y = Math.max(0, Math.min(y, SimulationConstants.worldDim));
@@ -259,27 +345,33 @@ export class SimulationBoard extends React.Component<Props> {
 
   render() {
     return (
-      <Grid container direction='column'>
-        <Grid item xs={true}>
-          <label>Turn: </label> {simulationStore.turn}
-        </Grid>
-        <Grid item xs={true}>
-          <canvas
-            ref={this.canvasRef}
-            width={simulationStore.config.width} height={simulationStore.config.height}
-            style={this.renderStyle}
-            onMouseDown={this.handleMouseDownBoard}
-            onMouseUp={this.handleMouseUpBoard}
-            onMouseMove={this.handleMouseMoveBoard}
-          ></canvas>
-          <canvas
-            ref={this.canvasDetailRef}
-            onMouseMove={this.handleMouseMoveDetails}
-            width={simulationStore.config.width} height={simulationStore.config.height}
-            style={SimulationBoard.canvasStyle}
-          ></canvas>
-        </Grid>
-      </Grid>
+      <div className='SimulationBoard'
+        onMouseDown={this.handleMouseDownBoard}
+        onMouseUp={this.handleMouseUpBoard}
+        onMouseMove={this.handleMouseMoveBoard}
+      >
+        <div className='simulationContainer'
+          ref={this.componentRef}
+        >
+          <label>{simulationStore.turn}</label>
+          <div className='simulationContents' style={this.renderStyle}>
+            <canvas
+              ref={this.canvasRef}
+              width={simulationStore.config.width} height={simulationStore.config.height}
+            />
+            <canvas
+              className='canvasDetails'
+              ref={this.canvasDetailRef}
+              onMouseMove={this.handleMouseMoveDetails}
+              width={simulationStore.config.width} height={simulationStore.config.height}
+              style={this.closeupStyle}
+            ></canvas>
+          </div>
+        </div>
+        <div className='controls'>
+          <SettingsEditorBasic settings={simulationStore.settings} onChange={simulationStore.setSettings} />
+        </div>
+      </div>
     )
   }
 }

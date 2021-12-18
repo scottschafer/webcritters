@@ -1,0 +1,10 @@
+.GenomeCodeList {
+  color: lightgray;
+  font-style: italic;
+  font-size: 11px;
+  // margin-left: -60px;
+  td:first-child {
+    text-align: left;
+    min-width: none;
+  }
+}

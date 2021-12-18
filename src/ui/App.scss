@@ -36,3 +36,25 @@
     transform: rotate(360deg);
   }
 }
+
+.pull-right {
+  float: right;
+}
+
+.main-tabs-container {
+  position: relative;
+  background-color: rgba(0,0,0,.5);
+  z-index: 1;
+  .MuiTab-textColorPrimary {
+    color: gray
+  }
+  .Mui-selected {
+    color: white!important;
+  }
+}
+
+.Tweak {
+  position: absolute;
+  z-index: 2;
+  background-color: rgba(0,0,0,.75);
+}

@@ -1,17 +1,29 @@
 .SummaryView {
+  float: right;
+  width: 300px;
+  z-index: 1;
+  position: relative;
+  .top-genome-label {
+    text-align: left;
+    margin-top: 8px;
+  }
   table {
     text-align: left;
     .genome-row {
       cursor: pointer;
     }
     .selected-genome {
-      background-color: lightblue;
+      outline-color: blue!important;
+      outline: solid;
+      margin-top: 4px;
+      margin-bottom: 4px;
     }
     tr {
+      vertical-align: top;
       td:first-child {
-        min-width: 80px;
+        // min-width: 30px;
         text-align: right;
-        padding-right: 10px;
+        padding-right: 5px;
       }
       td:last-child {
         margin-right: 5px;

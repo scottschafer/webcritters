@@ -1,7 +1,5 @@
 
 export class SimulationConstants {
-  // static readonly useWorker = true;
-  static readonly useWorker = true;
   static readonly validate = false;
 
 
@@ -30,7 +28,7 @@ export class SimulationConstants {
 
   static readonly minSpeed = 0;
   static readonly maxSpeed = 11;
-  static readonly initialSpeed = 11;
+  static readonly initialSpeed = 11; // 11;
   static readonly worldDim = 256;
   static readonly detailsDim = 32;
   static readonly totalPixels = SimulationConstants.worldDim * SimulationConstants.worldDim;

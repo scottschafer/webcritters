@@ -3,37 +3,41 @@ import { SimulationConstants } from '../common/SimulationConstants';
 
 export class SimulationSettings {
 
-  /* @observable */speed = SimulationConstants.initialSpeed;
-  /* @observable */barriers = false;
+  followSelection = false;
+  speed = SimulationConstants.initialSpeed;
+  barriers = false;
 
-  /* @observable */photosynthesisDuration = 5;
-  /* @observable */lifespanPerCell = 500;
-  /* @observable */spawnEnergyPerCell = 500;
-  /* @observable */mutationRate = 25;
+  photosynthesisDuration = 5;
+  lifespanPerCell = 500;
+  spawnEnergyPerCell = 500;
+  mutationRate = 25;
 
-  /* @observable */turnCost = 1;
-  /* @observable */baseInstructionCost = 0.1;
-  /* @observable */photoSynthesisEnergy = 2.5;
-  /* @observable */moveCost = 15;
-  /* @observable */eatCost = 1;
-  /* @observable */digestionEfficiencyPercent = 80;
-  /* @observable */biteStrength = .3;
-  /* @observable */sleepCount = 10;
+  turnCost = 1;
+  baseInstructionCost = 0.1;
+  photoSynthesisEnergy = 2.5;
+  moveCost = 15;
+  eatCost = 1;
+  digestionEfficiencyPercent = 80;
+  biteStrength = .3;
+  sleepCount = 10;
 
-  /* @observable */timer1Length = 10;
-  /* @observable */timer2Length = 20;
+  timer1Length = 10;
+  timer2Length = 20;
 
-  /* @observable */sightDistance = 32;
+  sightDistance = 32;
 
-  /* @observable */limitCellLength = 5;
+  limitCellLength = 5;
 
-  /* @observable */addFoodCount = 200; //100;
+  addFoodCount = 200; //100;
 
-  /* @observable */showPreview = true;
-  /* @observable */sleepAfterSpawnCount = 0; // 25;
+  showPreview = true;
+  sleepAfterSpawnCount = 0; // 25;
 
   allowCannibalism = true;
 
   sleepTurnEnergyCost = .1;
   deathRays = 0;
+
+  magnifierSize = 32;
+  magnification = 8;
 }

@@ -2,10 +2,10 @@ import { SimulationConstants } from '../common/SimulationConstants';
 import { ColorBlack, ColorDeathRay, ColorGreen } from './Colors';
 import { Genome } from './Genome';
 import { GenomeCode, GenomeCodeToInfoMap } from './GenomeCode';
-import { Globals } from './Globals';
+import { World } from './World';
 import { decodePoint, Orientation } from './Orientation';
 import { SimulationSettings } from './SimulationSettings';
-// import { Globals } from './Globals';
+// import { World } from './World';
 // import { SimulationSettings } from './SimulationSettings';
 
 const numConditions = 5;
@@ -54,8 +54,8 @@ export class Critter {
     }
   }
 
-  init(genome: Genome, point: number, globals: Globals) {
-    // const { settings } = Globals;
+  init(genome: Genome, point: number, globals: World) {
+    // const { settings } = World;
     Object.assign(this, {
       genome,
       pc: 0,
@@ -104,7 +104,7 @@ export class Critter {
     this.validate(globals);
   }
 
-  validate(globals: Globals) {
+  validate(globals: World) {
     if (SimulationConstants.validate) {
       let pts = {};
       const pointToCritterIndex = globals.pointToCritterIndex;
@@ -190,7 +190,7 @@ export class Critter {
     }
   }
 
-  takeTurn(globals: Globals) {
+  takeTurn(globals: World) {
 
     // if we're dead, nothing to do
     if (this.isDead) {
@@ -344,13 +344,12 @@ export class Critter {
         //   break;
 
         case GenomeCode.Eat:
-          // const orientation = this.orientation;
-          // for (let i = 0; i < 4; i++) {
-          //   this.orientation = i;
-          // const allowCannibalism = !!(this.pc & 1);
-          this.eat(globals, allowCannibalism); //);
-          // }
-          // this.orientation = orientation;
+          this.eat(globals, true);
+          break;
+
+
+        case GenomeCode.EatOther:
+          this.eat(globals, false);
           break;
 
 
@@ -408,8 +407,15 @@ export class Critter {
           this.timer2 += settings.timer2Length;
           break;
 
+        case GenomeCode.TestSeeRelative: {
+          let distance = (settings.sightDistance); // * (this.pc + 1);
+          this.testSeeRelative(globals, distance);
+          this.executeTest();
+          break;
+        }
+
         case GenomeCode.TestSeeFood:
-        case GenomeCode.TestSeeFoodX2:
+          // case GenomeCode.TestSeeFoodOther:
           {
             let distance = (settings.sightDistance); // * (this.pc + 1);
             // let distance = (code === GenomeCode.TestSeeFood) ? settings.sightDistance : (settings.sightDistance * 2);// * (this.pc + 1);
@@ -417,7 +423,7 @@ export class Critter {
             //   distance += settings.sightDistance;
             //   this.pc = (this.pc + 1) % genome.length;
             // }
-            this.testSeeFood(globals, distance, allowCannibalism);
+            this.testSeeFood(globals, distance, code === GenomeCode.TestSeeFood);
             this.executeTest();
             // if ((!this.condition) || (this.reverseIf && this.condition)) {
             //   this.nextCode();
@@ -549,7 +555,7 @@ export class Critter {
   }
 
 
-  setPhotosynthesizing(globals: Globals, value: boolean) {
+  setPhotosynthesizing(globals: World, value: boolean) {
     if (value !== !!this.photosynthesizing) {
       this.photosynthesizing = value ? globals.settings.photosynthesisDuration : 0;
       this.lengthPhotoCells = this.photosynthesizing ? 1 : 0;
@@ -567,7 +573,7 @@ export class Critter {
     }
   };
 
-  move(globals: Globals) {
+  move(globals: World) {
     const { settings } = globals;
     this.blocked = false;
     // this.bitten = false;
@@ -632,7 +638,7 @@ export class Critter {
 
   }
 
-  flip(globals: Globals) {
+  flip(globals: World) {
     if (this.length > 1) {
       let photo = this.photosynthesizing;
       if (photo) {
@@ -657,13 +663,13 @@ export class Critter {
     return this.energy <= -1000;
   }
 
-  setEaten(globals: Globals) {
+  setEaten(globals: World) {
     this.energy = -10000;
     for (let i = 0; i < this.length; i++) {
       const index = globals.pointToCritterIndex[this.cellPositions[i]];
 
       if (index === this.critterIndex || !index) {
-        // Globals.setPixel(this.cellPositions[i], ColorBlack);
+        // World.setPixel(this.cellPositions[i], ColorBlack);
       } else {
         debugger;
       }
@@ -683,7 +689,7 @@ export class Critter {
     return critter.photosynthesizing || !critter.unfolded;
   }
 
-  eat(globals: Globals, allowCannibalism: boolean) {
+  eat(globals: World, allowCannibalism: boolean) {
     // if (this.photosynthesizing) {
     //   return;
     // }
@@ -729,8 +735,26 @@ export class Critter {
     }
   }
 
+  testSeeRelative(globals: World, sightDistance: number) {
+    this.condition = false;
+    const delta = Orientation.deltas[this.orientation];
 
-  testSeeFood(globals: Globals, sightDistance: number, allowCannibalism: boolean) {
+    let point = this.cellPositions[0];
+    for (let i = 0; i < sightDistance; i++) {
+      point = (point + delta) & 0xffff;
+      const destPixel = globals.pixelArray[point];
+      if (destPixel !== ColorBlack) {
+        const hitCritter = globals.critters[globals.pointToCritterIndex[point]];
+        if (hitCritter) {
+          this.condition = hitCritter.genome === this.genome
+        }
+        break
+      }
+    }
+  }
+
+
+  testSeeFood(globals: World, sightDistance: number, allowCannibalism: boolean) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
 
@@ -783,7 +807,7 @@ export class Critter {
   }
 
 
-  testTouchingRelative(globals: Globals) {
+  testTouchingRelative(globals: World) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
     const newHead = (this.cellPositions[0] + delta) & 0xffff;
@@ -798,7 +822,7 @@ export class Critter {
     }
   }
 
-  canSpawn(globals: Globals) {
+  canSpawn(globals: World) {
     return (this.forceSpawn && this.unfolded && this.energy > globals.settings.spawnEnergyPerCell) || this.energy > this.spawnEnergy;
   }
 

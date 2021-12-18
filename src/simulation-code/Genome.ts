@@ -1,7 +1,7 @@
 import { computed } from 'mobx';
 import { SimulationConstants } from '../common/SimulationConstants';
+import { simulationStore } from '../ui/SimulationUIStore';
 import { GenomeCharToCode, GenomeCode, GenomeCodeInfo, GenomeCodeToInfo } from './GenomeCode';
-import { globals, Globals } from './Globals';
 
 export class Genome {
   codes: Array<GenomeCode>;
@@ -55,7 +55,7 @@ export class Genome {
       return codes[Math.floor(Math.random() * codes.length)];
     };
 
-    const { settings } = globals;
+    const { settings } = simulationStore.world;
     if (Math.random() > (settings.mutationRate / 100)) {
       // no mutation
       return result;

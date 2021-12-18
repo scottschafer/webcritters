@@ -1,8 +1,8 @@
 import { blendColors, ColorGreen, GenomeColors } from './Colors';
 import { GenomeCharToCode, GenomeCode, GenomeCodeInfo, PhotosynthesizeGenome } from './GenomeCode';
 import { Genome } from './Genome';
-import { globals, Globals } from './Globals';
 import { SimulationConstants } from '../common/SimulationConstants';
+import { simulationStore } from '../ui/SimulationUIStore';
 
 class GenomeStore {
 
@@ -28,10 +28,14 @@ class GenomeStore {
       result = genome;
     }
 
-    const { settings } = globals;
+    const { settings } = simulationStore.world;
 
     // optionally produce a mutated offspring
     if (SimulationConstants.allowDeathBirth && allowMutation && (Math.random() < (settings.mutationRate / 100))) {
+      if (!result?.mutate) {
+        debugger;
+        return
+      }
       let mutatedGenome = result.mutate();
       const existingGenome = genomeStore.genomeInfo[mutatedGenome.asString];
       if (existingGenome) {
@@ -43,7 +47,7 @@ class GenomeStore {
       }
     }
     ++result.count;
-    ++globals.numCritters;
+    ++simulationStore.world.numCritters;
     return result;
   }
 
@@ -58,7 +62,7 @@ class GenomeStore {
       delete this.usedColors[genome.color];
       delete this.genomeInfo[genome.asString];
     }
-    --globals.numCritters;
+    --simulationStore.world.numCritters;
   }
 
   private initNewGenome(genome: Genome) {
@@ -82,7 +86,9 @@ class GenomeStore {
       if (color === null) {
         const sortedGenomes = Object.values(genomeStore.genomeInfo).sort((a, b) => (b.count - a.count));
         if (sortedGenomes.length < GenomeColors.length) {
-          debugger;
+          // Dunno why this happens, but for now ignore it
+          // debugger;
+
         }
         const skipTop = 3;
         color = ColorGreen;
@@ -96,7 +102,7 @@ class GenomeStore {
     genome.color = color;
     genome.colorPhotosynthesizing = colorPhotosynthesizing;
     genome.count = 0;
-    genome.firstTurn = globals.turn;
+    genome.firstTurn = simulationStore.world.turn;
 
     // console.log(`assigning color #${color.toString(16).substr(2)} to genome ${genome}`);
 
@@ -105,4 +111,4 @@ class GenomeStore {
   }
 }
 
-export const genomeStore = new GenomeStore;
+export const genomeStore = new GenomeStore();
