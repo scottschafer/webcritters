@@ -138,6 +138,13 @@ export class SimulationBoard extends React.Component<Props> {
           // ctx.strokeRect(simulationStore.details.x - 1, simulationStore.details.y - 1, SimulationConstants.detailsDim + 2, SimulationConstants.detailsDim + 2);
 
           const ctxDetails = this.canvasDetailRef.current.getContext('2d');
+
+          // Create a circular clipping path
+          ctxDetails.beginPath();
+          const r = ctxDetails.canvas.width / 2;
+          ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
+          ctxDetails.clip();
+
           // ctxDetails.imageSmoothingEnabled = false;
 
           // ctxDetails.drawImage(canvas,
