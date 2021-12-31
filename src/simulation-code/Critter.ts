@@ -2,7 +2,7 @@ import { SimulationConstants } from '../common/SimulationConstants';
 import { ColorBlack, ColorDeathRay, ColorGreen } from './Colors';
 import { Genome } from './Genome';
 import { GenomeCode, GenomeCodeToInfoMap } from './GenomeCode';
-import { World } from './World';
+import { Simulation } from './Simulation';
 import { decodePoint, Orientation } from './Orientation';
 import { SimulationSettings } from './SimulationSettings';
 // import { World } from './World';
@@ -54,7 +54,7 @@ export class Critter {
     }
   }
 
-  init(genome: Genome, point: number, globals: World) {
+  init(genome: Genome, point: number, globals: Simulation) {
     // const { settings } = World;
     Object.assign(this, {
       genome,
@@ -104,7 +104,7 @@ export class Critter {
     this.validate(globals);
   }
 
-  validate(globals: World) {
+  validate(globals: Simulation) {
     if (SimulationConstants.validate) {
       let pts = {};
       const pointToCritterIndex = globals.pointToCritterIndex;
@@ -164,7 +164,7 @@ export class Critter {
   executeTest() {
     if ((!this.condition) || (this.reverseIf && this.condition)) {
       const codes = this.genome.codes;
-      for (let i = 0; i < codes.length; i++) {
+      for (let i = 1; i < codes.length; i++) {
         let testPC = (this.pc + i) % codes.length;
         if (codes[testPC] === GenomeCode.Else) {
           this.pc = (testPC + 1) % codes.length;
@@ -174,11 +174,11 @@ export class Critter {
 
       let maxCount = codes.length;
       while (maxCount--) {
-        if (++this.pc === codes.length) {
+        if (++this.pc >= codes.length) {
           this.pc = this.startPc;
         }
         if (codes[this.pc] === GenomeCode.And) {
-          this.pc += 2;
+          // this.pc += 2;
           if (++this.pc >= codes.length) {
             this.pc = this.startPc;
           }
@@ -190,7 +190,7 @@ export class Critter {
     }
   }
 
-  takeTurn(globals: World) {
+  takeTurn(globals: Simulation) {
 
     // if we're dead, nothing to do
     if (this.isDead) {
@@ -555,7 +555,7 @@ export class Critter {
   }
 
 
-  setPhotosynthesizing(globals: World, value: boolean) {
+  setPhotosynthesizing(globals: Simulation, value: boolean) {
     if (value !== !!this.photosynthesizing) {
       this.photosynthesizing = value ? globals.settings.photosynthesisDuration : 0;
       this.lengthPhotoCells = this.photosynthesizing ? 1 : 0;
@@ -573,7 +573,7 @@ export class Critter {
     }
   };
 
-  move(globals: World) {
+  move(globals: Simulation) {
     const { settings } = globals;
     this.blocked = false;
     // this.bitten = false;
@@ -581,15 +581,16 @@ export class Critter {
     const newHead = (this.cellPositions[0] + delta) & 0xffff;
 
     const destPixel = globals.pixelArray[newHead];
+    const hitCritter = globals.critters[globals.pointToCritterIndex[newHead]];
 
     // this.energy -= settings.moveCost / 2;
 
     this.failed = false;
-    if (destPixel === ColorBlack || destPixel === ColorDeathRay) {
+    if (destPixel === ColorBlack || destPixel === ColorDeathRay /* || (! this.photosynthesizing && hitCritter === this) */) {
       this.energy -= settings.moveCost;
       // this.energy -= settings.moveCost / 2;
       // this.setPhotosynthesizing(globals, false);
-      this.hypermode = false;
+      // this.hypermode = false;
 
       const color = this.color; // this.photosynthesizing ? this.colorPhotosynthesizing : this.color;
 
@@ -608,8 +609,19 @@ export class Critter {
         this.unfolded = this.cellPositions[this.length - 2] !== this.cellPositions[this.length - 1];
       }
       if (this.photosynthesizing && this.unfolded) {
-        globals.setPixel(this.cellPositions[this.length - 1], ColorGreen, this.critterIndex);
-        this.lengthPhotoCells = Math.max(this.lengthPhotoCells - 1, 1);
+        this.photosynthesizing = 0;
+        this.lengthPhotoCells = 0;
+        for (let i = 0; i < this.length; i++) {
+          globals.setPixel(this.cellPositions[i], color, this.critterIndex);
+        }
+
+        // this.lengthPhotoCells = 1;
+        // for (let i = 0; i < (this.length - 1); i++) {
+        //   globals.setPixel(this.cellPositions[i], color, this.critterIndex);
+        // }
+  
+        // globals.setPixel(this.cellPositions[this.length - this.lengthPhotoCells], ColorGreen, this.critterIndex);
+        // this.lengthPhotoCells = Math.max(this.lengthPhotoCells - 1, 1);
       }
 
       if (tail !== this.cellPositions[this.length - 1]) {
@@ -638,7 +650,7 @@ export class Critter {
 
   }
 
-  flip(globals: World) {
+  flip(globals: Simulation) {
     if (this.length > 1) {
       let photo = this.photosynthesizing;
       if (photo) {
@@ -663,7 +675,7 @@ export class Critter {
     return this.energy <= -1000;
   }
 
-  setEaten(globals: World) {
+  setEaten(globals: Simulation) {
     this.energy = -10000;
     for (let i = 0; i < this.length; i++) {
       const index = globals.pointToCritterIndex[this.cellPositions[i]];
@@ -671,7 +683,7 @@ export class Critter {
       if (index === this.critterIndex || !index) {
         // World.setPixel(this.cellPositions[i], ColorBlack);
       } else {
-        debugger;
+//        debugger;
       }
     }
   }
@@ -689,7 +701,7 @@ export class Critter {
     return critter.photosynthesizing || !critter.unfolded;
   }
 
-  eat(globals: World, allowCannibalism: boolean) {
+  eat(globals: Simulation, allowCannibalism: boolean) {
     // if (this.photosynthesizing) {
     //   return;
     // }
@@ -735,7 +747,7 @@ export class Critter {
     }
   }
 
-  testSeeRelative(globals: World, sightDistance: number) {
+  testSeeRelative(globals: Simulation, sightDistance: number) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
 
@@ -754,7 +766,7 @@ export class Critter {
   }
 
 
-  testSeeFood(globals: World, sightDistance: number, allowCannibalism: boolean) {
+  testSeeFood(globals: Simulation, sightDistance: number, allowCannibalism: boolean) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
 
@@ -807,7 +819,7 @@ export class Critter {
   }
 
 
-  testTouchingRelative(globals: World) {
+  testTouchingRelative(globals: Simulation) {
     this.condition = false;
     const delta = Orientation.deltas[this.orientation];
     const newHead = (this.cellPositions[0] + delta) & 0xffff;
@@ -822,7 +834,7 @@ export class Critter {
     }
   }
 
-  canSpawn(globals: World) {
+  canSpawn(globals: Simulation) {
     return (this.forceSpawn && this.unfolded && this.energy > globals.settings.spawnEnergyPerCell) || this.energy > this.spawnEnergy;
   }
 

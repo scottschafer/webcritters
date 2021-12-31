@@ -46,9 +46,9 @@ export const colorToRGB = (color: number) => {
   return rgb;
 }
 
-export const colorToRGBStyle = (color: number) => {
+export const colorToRGBStyle = (color: number, alpha = 1) => {
   const rgb = colorToRGB(color);
-  return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
   // return `#${rgb.r.toString(16)}${rgb.g.toString(16)}${rgb.b.toString(16)}`
 }
 
@@ -65,7 +65,7 @@ export const colorToRGBStyle = (color: number) => {
 
   GenomeColors.push(colorToNumber(128, 0, 32));
   GenomeColors.push(colorToNumber(0, 128, 32));
-  GenomeColors.push(colorToNumber(192, 32, 0));
+  // GenomeColors.push(colorToNumber(192, 32, 0));
   GenomeColors.push(colorToNumber(0, 0, 192));
   GenomeColors.push(colorToNumber(192, 192, 0));
   GenomeColors.push(colorToNumber(192, 0, 192));

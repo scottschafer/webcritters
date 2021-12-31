@@ -74,7 +74,7 @@ export class SimulationBoard extends React.Component<Props> {
     // this.width = body.offsetWidth;
     // this.height = body.offsetHeight;
 
-    this.width = this.componentRef.current?.clientWidth;
+    this.width = this.componentRef.current?.clientWidth / 2;
     this.height = this.componentRef.current?.clientHeight;
   }
 
@@ -111,6 +111,15 @@ export class SimulationBoard extends React.Component<Props> {
 
   componentDidMount() {
     this.updateDims();
+    const ctxDetails = this.canvasDetailRef.current.getContext('2d');
+
+    // Create a circular clipping path
+    ctxDetails.beginPath();
+    const r = ctxDetails.canvas.width / 2;
+    ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
+    ctxDetails.closePath();
+    ctxDetails.clip();
+
   }
 
   componentDidUpdate() {
@@ -118,7 +127,7 @@ export class SimulationBoard extends React.Component<Props> {
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const byteArray = simulationStore.world.canvasBuffer;
+        const byteArray = simulationStore.simulation.canvasBuffer;
         const clamped = new Uint8ClampedArray(byteArray);
         const img = new ImageData(
           clamped,
@@ -126,7 +135,7 @@ export class SimulationBoard extends React.Component<Props> {
           simulationStore.config.height
         );
         ctx.putImageData(img, 0, 0);
-        if (simulationStore.details) {
+        if (simulationStore.details && simulationStore.settings.showPreview) {
           // ctx.strokeStyle = 'black';
           // ctx.strokeRect(simulationStore.details.x - 2, simulationStore.details.y - 2, SimulationConstants.detailsDim + 4, SimulationConstants.detailsDim + 4);
           ctx.strokeStyle = 'rgba(255,255,255,1)';
@@ -140,10 +149,11 @@ export class SimulationBoard extends React.Component<Props> {
           const ctxDetails = this.canvasDetailRef.current.getContext('2d');
 
           // Create a circular clipping path
-          ctxDetails.beginPath();
-          const r = ctxDetails.canvas.width / 2;
-          ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
-          ctxDetails.clip();
+          // ctxDetails.beginPath();
+          // const r = ctxDetails.canvas.width / 2;
+          // ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
+          // ctxDetails.closePath();
+          // ctxDetails.clip();
 
           // ctxDetails.imageSmoothingEnabled = false;
 
@@ -169,8 +179,13 @@ export class SimulationBoard extends React.Component<Props> {
             if (!critter.genome) {
               return;
             }
+            const alpha = (critter.energy > 0) ? (critter.energy / critter.spawnEnergy) : 0;
             const points: Array<{ x: number, y: number }> = [];
+            if (critter.length > 20) {
+              debugger;
+            }
             for (let i = 0; i < critter.length; i++) {
+
               let point = decodePoint(critter.cellPositions[i]);
 
               point.x = (point.x - simulationStore.details.x) * pixelSize;
@@ -184,40 +199,26 @@ export class SimulationBoard extends React.Component<Props> {
             }
 
             if (points.length) {
+              if (points.length > 10) {
+                debugger;
+              }
               const color = critter.color; // critter.photosynthesizing ? ColorGreen : critter.color;
               ctxDetails.lineWidth = (points.length === 1) ? pixelSize : pixelSize * .7;
 
               const genome = critter.genome.asString;
-              // if (true) { // genome.length > 1 && critter.photosynthesizing) {
-              //   ctxDetails.shadowColor = 'rgba(0,255,0, 1)';
-              //   ctxDetails.shadowBlur = 8;
-              // } else {
-              //   ctxDetails.shadowColor = '';
-              //   ctxDetails.shadowBlur = 0;
-
-              // }
 
               ctxDetails.beginPath();
               ctxDetails.moveTo(points[0].x + pixelSize / 2, points[0].y + pixelSize / 2);
               for (let i = 0; i < points.length; i++) {
                 ctxDetails.lineTo(points[i].x + pixelSize / 2, points[i].y + pixelSize / 2);
               }
-
-              // if (critter.photosynthesizing && genome.length > 1) {
-              //   ctxDetails.lineWidth += 4;
-              //   ctxDetails.strokeStyle = 'rgba(0,255,0,1)';
-              //   ctxDetails.stroke();
-              //   ctxDetails.lineWidth -= 4;
-              // }
-
-              ctxDetails.strokeStyle = colorToRGBStyle(color);
-
+              ctxDetails.strokeStyle = colorToRGBStyle(color, alpha);
               ctxDetails.stroke();
               ctxDetails.closePath();
 
               if (critter.photosynthesizing && genome.length > 1) {
                 ctxDetails.beginPath();
-                ctxDetails.strokeStyle = 'rgba(0,255,0,1)';
+                ctxDetails.strokeStyle = `rgba(0,255,0,${alpha})`;
 
                 ctxDetails.lineWidth = pixelSize * .7;
                 let lastPoint = points[points.length - 1]
@@ -233,10 +234,14 @@ export class SimulationBoard extends React.Component<Props> {
               }
 
               if (critter.genome.asString !== PhotosynthesizeGenome) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
-                ctxDetails.fillStyle = 'white';
+                // ctxDetails.fillStyle = 'white';
+                ctxDetails.strokeStyle = `rgba(255,255,255,${alpha})`
+                ctxDetails.lineWidth = 2
+
+
                 // ctxDetails.strokeStyle = 'white';
                 // ctxDetails.lineWidth = 1;
-                const triangleSize = pixelSize / 3;
+                const triangleSize = pixelSize * .4;
                 const cx = points[0].x + pixelSize / 2;
                 const cy = points[0].y + pixelSize / 2;
                 const orientation = critter.orientation;
@@ -268,8 +273,10 @@ export class SimulationBoard extends React.Component<Props> {
                     ctxDetails.lineTo(cx + triangleSize, cy - triangleSize);
                     break;
                 }
-                ctxDetails.fill();
-                // ctxDetails.stroke();
+                ctxDetails.closePath();
+                // ctxDetails.fill();
+
+                ctxDetails.stroke();
                 // ctxDetails.closePath();
               }
             }

@@ -7,7 +7,7 @@ import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
 import { persistence } from '../simulation-code/Persistence';
 import { SimulationSettings } from '../simulation-code/SimulationSettings';
-import { World } from '../simulation-code/World';
+import { Simulation } from '../simulation-code/Simulation';
 import { decodePoint } from '../simulation-code/Orientation';
 
 // import { this.world } from '../simulation-worker/this.world';
@@ -31,7 +31,7 @@ class SimulationUIStore {
   lastGetGenealogyTurn = 0;
   runningAtFullSpeed = false;
   isTakingTurn = false;
-  world: World;
+  simulation: Simulation;
 
 
   started = false;
@@ -57,7 +57,7 @@ class SimulationUIStore {
     const oldValue = JSON.parse(JSON.stringify(this.settings))
     this.settings = value;
 
-    this.world.updateSettings(oldValue);
+    this.simulation.updateSettings(oldValue);
   }
 
   @computed get delay() {
@@ -89,11 +89,10 @@ class SimulationUIStore {
     if (this.started) {
       return;
     }
-    this.world = new World()
-    this.world.reset();
+    this.simulation = new Simulation()
+    this.simulation.reset();
     this.started = true;
     console.log('startSimulation');
-    // this.world.init(this.sharedData, toJS(this.settings));
 
     this.runTurnLoop();
   }
@@ -118,7 +117,7 @@ class SimulationUIStore {
     this.selectedGenome = genome;
   }
 
-  takeTurn = () => {
+  @action.bound takeTurn() {
 
     const { settings } = this;
     this.isTakingTurn = true;
@@ -128,7 +127,7 @@ class SimulationUIStore {
     let selectedCritter = null;
     let selectedCritterGenome = null
     if (this.settings.followSelection && this.following.followingIndex >= 0) {
-      selectedCritter = this.world.critters[this.following.followingIndex];
+      selectedCritter = this.simulation.critters[this.following.followingIndex];
       selectedCritterGenome = selectedCritter?.genome;
       if (selectedCritterGenome?.asString.includes('M') || selectedCritterGenome?.asString.includes('m')) {
         const headPoint = decodePoint(selectedCritter.cellPositions[0]);
@@ -136,7 +135,12 @@ class SimulationUIStore {
         this.following.y = headPoint.y - settings.magnifierSize / 2;
       }
     }
-    const turn = this.world.takeTurn(turnsToTake); //.then(result => {
+
+    const t0 = performance.now();
+    const turn = this.simulation.takeTurn(turnsToTake); //.then(result => {
+    const t1 = performance.now();
+    console.log(`Call to this.world.takeTurn took ${t1 - t0} milliseconds.`);
+
     if (this.settings.followSelection) {
       if (selectedCritter) {
         if (selectedCritter.isDead || this.selectedGenome !== selectedCritter.genome?.asString) {
@@ -146,7 +150,7 @@ class SimulationUIStore {
       if (!selectedCritter) {
         let followIndex = -1;
         let maxEnergy = -1;
-        this.world.critters.forEach((critter, index) => {
+        this.simulation.critters.forEach((critter, index) => {
           if (!critter.isDead && critter.genome.asString === this.selectedGenome) {
             if (critter.energy > maxEnergy) {
               maxEnergy = critter.energy;
@@ -162,26 +166,26 @@ class SimulationUIStore {
       }
     }
 
-    this.setDetail(this.world.getDetail(this.following, settings.magnifierSize))
+    this.setDetail(this.simulation.getDetail(this.following, settings.magnifierSize))
 
     //    this.world.getDetail(this.following, settings.magnifierSize)
     this.isTakingTurn = false;
     this.setTurn(turn);
     // this.runTurnLoop();
 
-    this.setSummary(this.world.getSummary())
+    this.setSummary(this.simulation.getSummary())
 
 
     if (this.settings.showPreview && ((turn - this.lastGetSummaryTurn) > 100)) {
       this.lastGetSummaryTurn = turn;
       //        console.log('calling getSummary because turn is %d', result);
-      this.setSummary(this.world.getSummary())
+      this.setSummary(this.simulation.getSummary())
     }
 
 
     if ((turn - this.lastGetGenealogyTurn) > 3000) {
       this.lastGetGenealogyTurn = turn;
-      this.setGenealogyReport(this.world.getGenealogyReport())
+      this.setGenealogyReport(this.simulation.getGenealogyReport())
     }
 
 
@@ -209,27 +213,38 @@ class SimulationUIStore {
 
   runTurnLoop = () => {
 
-    window.setTimeout(this.runTurnLoop, 0);
-
     if (this.isTakingTurn) {
       return;
     }
 
-    if (!this.delay) {
-      if (!this.runningAtFullSpeed) {
-        this.runningAtFullSpeed = true;
-        this.takeTurn();
-      }
-    } else {
+    window.setTimeout(this.runTurnLoop, 0);
 
-      if (this.delay > 0) {
-        const curTime = new Date().getTime();
-        if ((curTime - this.lastTurnTime) >= this.delay) {
-          this.lastTurnTime = curTime;
-          this.takeTurn();
-        }
-      }
+    const curTime = new Date().getTime();
+    if ((curTime - this.lastTurnTime) >= this.delay) {
+      this.lastTurnTime = curTime;
+
+      const t0 = performance.now();
+      this.takeTurn();
+      const t1 = performance.now();
+      console.log(`Call to takeTurn took ${t1 - t0} milliseconds.`);
     }
+
+
+  //   if (!this.delay) {
+  //     if (!this.runningAtFullSpeed) {
+  //       this.runningAtFullSpeed = true;
+  //       this.takeTurn();
+  //     }
+  //   } else {
+
+  //     if (this.delay > 0) {
+  //       const curTime = new Date().getTime();
+  //       if ((curTime - this.lastTurnTime) >= this.delay) {
+  //         this.lastTurnTime = curTime;
+  //         this.takeTurn();
+  //       }
+  //     }
+  //   }
   }
 
 };

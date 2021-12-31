@@ -6,7 +6,7 @@ class Persistence {
     return {
       turn: simulationStore.turn,
       settings: simulationStore.settings,
-      pixelArray: simulationStore.world.canvasBuffer,
+      pixelArray: simulationStore.simulation.canvasBuffer,
       genomeInfo: genomeStore.genomeInfo,
       usedColors: genomeStore.usedColors
     }

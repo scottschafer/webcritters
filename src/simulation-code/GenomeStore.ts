@@ -28,7 +28,7 @@ class GenomeStore {
       result = genome;
     }
 
-    const { settings } = simulationStore.world;
+    const { settings } = simulationStore.simulation;
 
     // optionally produce a mutated offspring
     if (SimulationConstants.allowDeathBirth && allowMutation && (Math.random() < (settings.mutationRate / 100))) {
@@ -47,7 +47,7 @@ class GenomeStore {
       }
     }
     ++result.count;
-    ++simulationStore.world.numCritters;
+    ++simulationStore.simulation.numCritters;
     return result;
   }
 
@@ -62,7 +62,7 @@ class GenomeStore {
       delete this.usedColors[genome.color];
       delete this.genomeInfo[genome.asString];
     }
-    --simulationStore.world.numCritters;
+    --simulationStore.simulation.numCritters;
   }
 
   private initNewGenome(genome: Genome) {
@@ -102,7 +102,7 @@ class GenomeStore {
     genome.color = color;
     genome.colorPhotosynthesizing = colorPhotosynthesizing;
     genome.count = 0;
-    genome.firstTurn = simulationStore.world.turn;
+    genome.firstTurn = simulationStore.simulation.turn;
 
     // console.log(`assigning color #${color.toString(16).substr(2)} to genome ${genome}`);
 

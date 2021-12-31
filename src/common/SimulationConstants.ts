@@ -4,9 +4,10 @@ export class SimulationConstants {
 
 
   static readonly allowDeathBirth = true;
-  static readonly insertEvolvedCritters = false ? {
+  static readonly insertEvolvedCritters = true ? {
+    'E': 100,
     // 'mEmEF': 100,
-    'EPme<0': 1,
+    // 'EPme<E6pP!>0mm0': 1,
     // 'EP9<mPFmR0': 1000,
     // 'EP09<mm': 1,
     // '4Zm0P1E7E0>E69]2<6aE<70mEp': 1,

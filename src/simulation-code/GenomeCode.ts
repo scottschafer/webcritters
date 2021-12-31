@@ -91,7 +91,7 @@ export const GenomeCodeToInfoMap: {
     disabled: true,
     numCycles: 10,
     name: 'Eat other',
-    description: 'Eat in front of head'
+    description: 'Eat other species'
   },
   [GenomeCode.Sleep]: {
     char: 'Z',
@@ -160,20 +160,20 @@ export const GenomeCodeToInfoMap: {
     name: '',
     description: 'Turn head left'
   },
-  [GenomeCode.SetTimer1]: {
-    char: 'x',
-    disabled: true,
-    numCycles: 1,
-    name: '',
-    description: 'Set timer 1'
-  },
-  [GenomeCode.SetTimer2]: {
-    char: 'y',
-    disabled: true,
-    numCycles: 1,
-    name: '',
-    description: 'Set timer 2'
-  },
+  // [GenomeCode.SetTimer1]: {
+  //   char: 'x',
+  //   // disabled: true,
+  //   numCycles: 1,
+  //   name: '',
+  //   description: 'Set timer 1'
+  // },
+  // [GenomeCode.SetTimer2]: {
+  //   char: 'y',
+  //   // disabled: true,
+  //   numCycles: 1,
+  //   name: '',
+  //   description: 'Set timer 2'
+  // },
 
   [GenomeCode.TestSeeFood]: {
     char: '0',
@@ -230,14 +230,14 @@ export const GenomeCodeToInfoMap: {
 
   // [GenomeCode.TestTimer1]: {
   //   char: '5',
-  //   disabled: true,
+  //   // disabled: true,
   //   numCycles: 1,
   //   name: '',
   //   description: 'Test Timer1'
   // },
   // [GenomeCode.TestTimer2]: {
   //   char: '6',
-  //   disabled: true,
+  //   // disabled: true,
   //   numCycles: 1,
   //   name: '',
   //   description: 'Test Timer2'
@@ -340,7 +340,7 @@ export const GenomeCodeToInfoMap: {
 
   [GenomeCode.GoToA]: {
     char: 'A',
-    disabled: true,
+    disabled: false,
     numCycles: 0,
     name: '',
     description: 'Go to A'

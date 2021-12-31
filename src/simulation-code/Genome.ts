@@ -49,13 +49,14 @@ export class Genome {
       delete,
       modify
     };
+    // console.log(JSON.stringify(GenomeCodeToInfo, null, 2))
     const codes = Object.keys(GenomeCodeToInfo).filter(code => (GenomeCodeToInfo[code].disabled !== true)).map(code => parseInt(code, 10) as GenomeCode);
 
     function getRandomCode() {
       return codes[Math.floor(Math.random() * codes.length)];
     };
 
-    const { settings } = simulationStore.world;
+    const { settings } = simulationStore.simulation;
     if (Math.random() > (settings.mutationRate / 100)) {
       // no mutation
       return result;
@@ -70,6 +71,9 @@ export class Genome {
         }
         const position = Math.floor(Math.random() * newCodes.length + 1);
         const c = getRandomCode();
+        if ("4" === (c as any)) {
+          debugger
+        }
         if (position === 0) {
           newCodes.unshift(c);
         } else if (position >= newCodes.length) {

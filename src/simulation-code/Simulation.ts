@@ -15,7 +15,7 @@ import { makePoint, Orientation } from './Orientation';
 import { persistence } from './Persistence';
 import { SimulationSettings } from './SimulationSettings';
 
-export class World {
+export class Simulation {
 
   critters: Array<Critter> = new Array<Critter>(SimulationConstants.maxCritters + 1);
 
