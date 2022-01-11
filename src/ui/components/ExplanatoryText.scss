@@ -1,0 +1,42 @@
+::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, .5);
+  box-shadow: 0 0 1px rgba(255, 255, 255, .5);
+}
+
+.ExplanatoryText {
+  position: absolute;
+  text-align: left;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  right: 20px;
+  bottom: 45px;
+  overflow: auto;
+  background-color: rgba(0,0,0,.5);
+
+  h1 {
+    margin-bottom: 4px;
+  }
+
+  h3 {
+    margin-top: 0px;
+  }
+
+  p {
+    text-align: left;
+  }
+}
+
+.scrollMsg {
+  position: absolute;
+  right: 50px;
+  bottom: 20px;
+  font-style: italic;
+  color: lightgray;
+}

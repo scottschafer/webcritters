@@ -14,14 +14,15 @@ import { Button, Container, Grid, Tab, Tabs } from '@material-ui/core';
 import { SettingsEditorAdvanced, SettingsEditorBasic } from "./components/SettingsEditor";
 import { GenealogyView } from "./components/GenealogyView";
 import ReactResizeDetector from 'react-resize-detector'
+import { ExplanatoryText } from './components/ExplanatoryText';
 
-const tabs = ['Evolve', 'Play', 'Tweak', 'Genealogy'];
+const tabs = ['Evolve' /*, 'Play' */, 'Tweak', 'Genealogy'];
 
 export enum eAppMode {
   Evolve,
-  Play,
   Tweak,
-  Genealogy
+  Genealogy,
+  Play,
 };
 
 const App: React.FC = observer(() => {
@@ -61,6 +62,8 @@ const App: React.FC = observer(() => {
       </div>
 
       <SimulationBoard />
+
+      <ExplanatoryText/>
 
       <SummaryView
         selectedGenome={simulationStore.selectedGenome}
