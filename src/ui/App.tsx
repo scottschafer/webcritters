@@ -16,7 +16,8 @@ import { GenealogyView } from "./components/GenealogyView";
 import ReactResizeDetector from 'react-resize-detector'
 
 const tabs = ['Evolve', 'Play', 'Tweak', 'Genealogy'];
-enum eTabs {
+
+export enum eAppMode {
   Evolve,
   Play,
   Tweak,
@@ -34,6 +35,7 @@ const App: React.FC = observer(() => {
 
   const handleChangeTab = (event, newValue: number) => {
     setSelectedTab(newValue);
+    simulationStore.setAppMode(newValue)
   };
 
   function a11yProps(index) {
@@ -68,7 +70,7 @@ const App: React.FC = observer(() => {
         turn={simulationStore.turn} />
       {/* </Grid> */}
 
-      {(selectedTab === eTabs.Tweak) && <div className='Tweak'>
+      {(selectedTab === eAppMode.Tweak) && <div className='Tweak'>
         <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings} />
       </div>}
 
@@ -97,12 +99,12 @@ const App: React.FC = observer(() => {
                 </Tabs>
               </Grid>
 
-              {(selectedTab === eTabs.Evolve) && <div>
+              {(selectedTab === eAppMode.Evolve) && <div>
                 <SettingsEditorBasic settings={simulationStore.settings} onChange={simulationStore.setSettings} />
               </div>}
 
 
-              {(selectedTab === eTabs.Genealogy) && <div>
+              {(selectedTab === eAppMode.Genealogy) && <div>
                 <GenealogyView />
               </div>}
               {/* 

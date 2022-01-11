@@ -4,8 +4,10 @@ export class SimulationConstants {
 
 
   static readonly allowDeathBirth = true;
-  static readonly insertEvolvedCritters = true ? {
-    'E': 100,
+  static readonly insertEvolvedCritters = false ? {
+    // 'E': 1,
+    'LME': 0,
+    'MEg)&>': 100,
     // 'mEmEF': 100,
     // 'EPme<E6pP!>0mm0': 1,
     // 'EP9<mPFmR0': 1000,
@@ -32,6 +34,7 @@ export class SimulationConstants {
   static readonly initialSpeed = 11; // 11;
   static readonly worldDim = 256;
   static readonly detailsDim = 32;
+  static readonly playDim = 64;
   static readonly totalPixels = SimulationConstants.worldDim * SimulationConstants.worldDim;
 
   static readonly maxGenomeLength = 50;
@@ -39,4 +42,6 @@ export class SimulationConstants {
   static readonly maxCritterLength = 10;
   // static readonly maxCells = SimulationConstants.worldDim * SimulationConstants.worldDim;
   static readonly maxCritters = SimulationConstants.totalPixels - 1;
+
+  static readonly barrierSize = 96;
 }

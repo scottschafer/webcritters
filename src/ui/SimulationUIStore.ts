@@ -9,9 +9,9 @@ import { persistence } from '../simulation-code/Persistence';
 import { SimulationSettings } from '../simulation-code/SimulationSettings';
 import { Simulation } from '../simulation-code/Simulation';
 import { decodePoint } from '../simulation-code/Orientation';
+import { eAppMode } from './App';
 
 // import { this.world } from '../simulation-worker/this.world';
-
 
 class SimulationUIStore {
   // sharedArrayBufferUint8Array: Uint8Array;
@@ -19,11 +19,14 @@ class SimulationUIStore {
   @observable.ref summary: WorldSummary = null;
   @observable.ref genealogyReport: GenealogyReport = null;
   @observable.ref details: WorldDetails = null;
+  @observable.ref playDetails: WorldDetails = null;
 
   @observable.ref following: FollowingDetails = new FollowingDetails();
 
   @observable selectedGenome: string;
   @observable selectedGenomeIndex: number;
+
+  @observable appMode: eAppMode;
 
   lastTurnTime = 0;
   lastGetDetailTime = 0;
@@ -53,6 +56,29 @@ class SimulationUIStore {
     console.log(`handleHideTooltip: tooltipsShown = ${this.tooltipsShown}`);
   }
 
+  @action setAppMode(mode: eAppMode) {
+    if (mode === eAppMode.Play) {
+      persistence.save()
+    } else if (this.appMode === eAppMode.Play) {
+      persistence.load()
+    }
+    this.appMode = mode;
+
+    if (this.appMode === eAppMode.Play) {
+      // find the critter with highest energy and control that one
+      let highestEnergy = 0;
+      let highestEnergyCritter = null;
+      for (let i = 1; i < this.simulation.numCritters; i++) {
+        const critter = this.simulation.critters[i];
+        if (! critter.isDead && critter.energy > highestEnergy) {
+          highestEnergy = critter.energy;
+          highestEnergyCritter = critter;
+        }
+      }
+      this.following.followingIndex = highestEnergyCritter?.critterIndex;
+    }
+  }
+
   @action.bound setSettings(value: SimulationSettings) {
     const oldValue = JSON.parse(JSON.stringify(this.settings))
     this.settings = value;
@@ -63,10 +89,10 @@ class SimulationUIStore {
   @computed get delay() {
     let result = 0;
     if (!this.settings.speed || this.tooltipsShown) {
-      result = -1;
+      result = Infinity;
     } else {
       let delay = (SimulationConstants.maxSpeed - this.settings.speed) / SimulationConstants.maxSpeed;
-      result = delay * delay * delay * 100;
+      result = delay * delay * delay * 150;
       // if (!SimulationConstants.useWorker) {
       result = Math.max(1, result);
       // }
@@ -109,6 +135,10 @@ class SimulationUIStore {
     this.genealogyReport = genealogyReport;
   }
 
+  @action setPlayDetail(value: WorldDetails) {
+    this.playDetails = value;
+  }
+
   @action setDetail(value: WorldDetails) {
     this.details = value;
   }
@@ -118,15 +148,21 @@ class SimulationUIStore {
   }
 
   @action.bound takeTurn() {
+    
+    let playerControlledIndex = -1;
+    let turnsToTake = (this.settings.speed === 11) ? 10 : 1
+
+    if (this.appMode === eAppMode.Play) {
+      turnsToTake = 1;
+      playerControlledIndex = this.following.followingIndex;
+    }
 
     const { settings } = this;
     this.isTakingTurn = true;
     this.lastTurnTime = new Date().getTime();
-    const turnsToTake = (this.settings.speed === 11) ? 10 : 1
-
     let selectedCritter = null;
     let selectedCritterGenome = null
-    if (this.settings.followSelection && this.following.followingIndex >= 0) {
+    if ((this.settings.followSelection || this.appMode === eAppMode.Play) && this.following.followingIndex >= 0) {
       selectedCritter = this.simulation.critters[this.following.followingIndex];
       selectedCritterGenome = selectedCritter?.genome;
       if (selectedCritterGenome?.asString.includes('M') || selectedCritterGenome?.asString.includes('m')) {
@@ -137,7 +173,7 @@ class SimulationUIStore {
     }
 
     const t0 = performance.now();
-    const turn = this.simulation.takeTurn(turnsToTake); //.then(result => {
+    const turn = this.simulation.takeTurn(turnsToTake, playerControlledIndex); //.then(result => {
     const t1 = performance.now();
     console.log(`Call to this.world.takeTurn took ${t1 - t0} milliseconds.`);
 
@@ -166,8 +202,11 @@ class SimulationUIStore {
       }
     }
 
-    this.setDetail(this.simulation.getDetail(this.following, settings.magnifierSize))
-
+    if (this.appMode === eAppMode.Play) {
+      this.setPlayDetail(this.simulation.getDetail(this.following, SimulationConstants.playDim));
+    } else {
+      this.setDetail(this.simulation.getDetail(this.following, settings.magnifierSize))
+    }
     //    this.world.getDetail(this.following, settings.magnifierSize)
     this.isTakingTurn = false;
     this.setTurn(turn);

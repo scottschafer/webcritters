@@ -9,6 +9,15 @@ export enum GenomeCode {
   Hypermode, // = 'H',
   Spawn, // = 'S',
   Flip, // = 'F',
+  PickupBarrier,
+  DropBarrier,
+
+  PushBarrierForward,
+  PushBarrierLeft,
+  PushBarrierRight,
+  PullBarrier,
+  SwapRightBarrier,
+  SwapLeftBarrier,
 
   TurnLeft, // = '<',
   TurnRight, // = '>',
@@ -16,22 +25,30 @@ export enum GenomeCode {
   OrientDown, // = 'D',
   OrientRight, // = 'R',
   OrientLeft, // = 'L',
-  SetTimer1, // = 'x',
-  SetTimer2, // = 'y',
+  // SetTimer1, // = 'x',
+  // SetTimer2, // = 'y',
 
-  TestSeeFood, // = '0',
-  TestSeeRelative, // = '1',
-  TestBlocked, // = '2',
-  TestBitten, // = '3',
-  TestSpawned, // = '4',
-  TestTimer1, // = 'xx 5',
-  TestTimer2, // = 'xx 6',
-  TestLeftSide, // = '5',
-  TestTopSide, // = 'xxx 6,
+  TestSeeFood,
+  TestSeeRelative,
+  TestBlocked,
+  TestBlockedBySelf,
+  TestBlockedByOtherCritter,
+  TestBlockedByRelatedCritter,
+  TestBlockedByBarrier,
+  TestBlockedByFood,
+  TestBlockedByRelatedFood,
+
+  TestSpawned,
+  TestBitten,
+  TestTurn,
+  TestCoinFlip,
   TestFailed, // = '6'
   TestUnfolded, // = '7',
-  TestTurn, // = '8',
   TestTouchingRelative, // = '9',
+  TestCarryingBarrier,
+  TestNearbyRelative0,
+  TestNearbyRelative1,
+  TestNearbyRelativeMany,
 
   IfCondition, // = '?',
   IfNotCondition, // = '!',
@@ -52,10 +69,10 @@ export enum GenomeCode {
 };
 
 export type GenomeCodeInfo = {
-  numCycles: number;
+  numCycles?: number;
   description: string;
   char: string;
-  name: string;
+  name?: string;
   disabled?: boolean;
 }
 export const GenomeCodeToInfoMap: {
@@ -68,14 +85,14 @@ export const GenomeCodeToInfoMap: {
     description: 'Photosynthesize'
   },
   [GenomeCode.StopPhotosynthesize]: {
-    char: 'p',
+    char: 'N',
     disabled: false,
     numCycles: 1,
     name: 'Stop Photosynthesis',
     description: 'Stop Photosynthesis'
   },
   [GenomeCode.Move]: {
-    char: 'm',
+    char: 'M',
     numCycles: 10,
     name: 'Move',
     description: 'Move forward one square'
@@ -86,13 +103,13 @@ export const GenomeCodeToInfoMap: {
     name: 'Eat',
     description: 'Eat in front of head'
   },
-  [GenomeCode.EatOther]: {
-    char: 'e',
-    disabled: true,
-    numCycles: 10,
-    name: 'Eat other',
-    description: 'Eat other species'
-  },
+  // [GenomeCode.EatOther]: {
+  //   char: 'e',
+  //   disabled: true,
+  //   numCycles: 10,
+  //   name: 'Eat other',
+  //   description: 'Eat other species'
+  // },
   [GenomeCode.Sleep]: {
     char: 'Z',
     numCycles: 10,
@@ -119,22 +136,76 @@ export const GenomeCodeToInfoMap: {
   [GenomeCode.Flip]: {
     char: 'F',
     disabled: true,
-    numCycles: 1,
+    numCycles: 10,
     name: 'Flip',
     description: 'Flip'
+  },
+
+  [GenomeCode.PickupBarrier]: {
+    char: '{',
+    numCycles: 10,
+    description: 'Pick up barrier',
+    disabled: true
+  },
+
+  [GenomeCode.DropBarrier]: {
+    char: '}',
+    numCycles: 10,
+    description: 'Drop barrier',
+    disabled: true
+  },
+
+  [GenomeCode.PullBarrier]: {
+    char: ')',
+    numCycles: 10,
+    description: 'Pull barrier',
+    disabled: true
+  },
+
+  [GenomeCode.PushBarrierForward]: {
+    char: '0',
+    numCycles: 10,
+    description: 'Push barrier forward',
+    disabled: false
+  },
+
+  [GenomeCode.PushBarrierLeft]: {
+    char: '1',
+    numCycles: 10,
+    description: 'Push barrier left',
+    disabled: false
+  },
+
+  [GenomeCode.PushBarrierRight]: {
+    char: '2',
+    numCycles: 10,
+    description: 'Push barrier right',
+    disabled: false
+  },
+  [GenomeCode.SwapRightBarrier]: {
+    char: '3',
+    numCycles: 10,
+    description: 'Swap right barrier',
+    disabled: true
+  },
+  [GenomeCode.SwapLeftBarrier]: {
+    char: '4',
+    numCycles: 10,
+    description: 'Swap left barrier',
+    disabled: true
   },
 
   [GenomeCode.TurnLeft]: {
     char: '<',
     numCycles: 1,
     name: 'Turn Left',
-    description: 'Turn head 90 degrees to the left'
+    description: 'Turn head 90 degrees left'
   },
   [GenomeCode.TurnRight]: {
     char: '>',
     numCycles: 1,
     name: '',
-    description: 'Turn head 90 degrees to the right'
+    description: 'Turn head 90 degrees right'
   },
   [GenomeCode.OrientUp]: {
     char: 'U',
@@ -160,106 +231,86 @@ export const GenomeCodeToInfoMap: {
     name: '',
     description: 'Turn head left'
   },
-  // [GenomeCode.SetTimer1]: {
-  //   char: 'x',
-  //   // disabled: true,
-  //   numCycles: 1,
-  //   name: '',
-  //   description: 'Set timer 1'
-  // },
-  // [GenomeCode.SetTimer2]: {
-  //   char: 'y',
-  //   // disabled: true,
-  //   numCycles: 1,
-  //   name: '',
-  //   description: 'Set timer 2'
-  // },
 
   [GenomeCode.TestSeeFood]: {
-    char: '0',
-    numCycles: 5,
-    name: '',
-    description: 'Test see food'
+    char: 'a',
+    description: 'If see food'
   },
-
   [GenomeCode.TestSeeRelative]: {
-    char: '1',
-    numCycles: 5,
-    name: '',
-    description: 'Test see food (ignoring relatives)',
+    char: 'b',
+    description: 'If see (unrelated) food',
   },
-
   [GenomeCode.TestBlocked]: {
-    char: '2',
-    numCycles: 1,
-    name: '',
-    description: 'Test blocked'
+    char: 'c',
+    description: 'If blocked'
   },
-  [GenomeCode.TestBitten]: {
-    char: '3',
-    disabled: false,
-    numCycles: 1,
-    name: '',
-    description: 'Test bitten'
+  [GenomeCode.TestBlockedBySelf]: {
+    char: 'd',
+    description: 'If blocked by self'
+  },
+  [GenomeCode.TestBlockedByOtherCritter]: {
+    char: 'e',
+    description: 'If blocked by other'
+  },
+  [GenomeCode.TestBlockedByRelatedCritter]: {
+    char: 'f',
+    description: 'If blocked by relation'
+  },
+  [GenomeCode.TestBlockedByBarrier]: {
+    char: 'g',
+    description: 'If blocked by barrier'
+  },
+  [GenomeCode.TestBlockedByFood]: {
+    char: 'h',
+    description: 'If blocked by food'
+  },
+  [GenomeCode.TestBlockedByRelatedFood]: {
+    char: 'i',
+    description: 'If blocked by related food'
   },
   [GenomeCode.TestSpawned]: {
-    char: '4',
-    disabled: false,
-    numCycles: 1,
-    name: '',
-    description: 'Test spawned'
+    char: 'j',
+    description: 'If spawned'
   },
-  [GenomeCode.TestLeftSide]: {
-    char: '5',
-    numCycles: 1,
-    name: '',
-    description: 'Test on Left Side'
-  },
-  // [GenomeCode.TestTopSide]: {
-  //   char: '6',
-  //   numCycles: 1,
-  //   name: '',
-  //   description: 'Test on Top Side'
-  // },
-  [GenomeCode.TestFailed]: {
-    char: '6',
-    numCycles: 0,
-    name: '',
-    description: 'Test failed'
-  },
-
-  // [GenomeCode.TestTimer1]: {
-  //   char: '5',
-  //   // disabled: true,
-  //   numCycles: 1,
-  //   name: '',
-  //   description: 'Test Timer1'
-  // },
-  // [GenomeCode.TestTimer2]: {
-  //   char: '6',
-  //   // disabled: true,
-  //   numCycles: 1,
-  //   name: '',
-  //   description: 'Test Timer2'
-  // },
-  [GenomeCode.TestUnfolded]: {
-    char: '7',
-    disabled: false,
-    numCycles: 1,
-    name: '',
-    description: 'Test fully unfolded'
+  [GenomeCode.TestBitten]: {
+    char: 'k',
+    description: 'If bitten'
   },
   [GenomeCode.TestTurn]: {
-    char: '8',
-    numCycles: 1,
-    name: '',
-    description: 'Test turn'
+    char: 'l',
+    description: 'If turn'
+  },
+  [GenomeCode.TestCoinFlip]: {
+    char: 'm',
+    description: 'If coin flip'
+  },
+  [GenomeCode.TestFailed]: {
+    char: 'n',
+    description: 'If failed'
+  },
+  [GenomeCode.TestUnfolded]: {
+    char: 'o',
+    description: 'If fully unfolded'
   },
   [GenomeCode.TestTouchingRelative]: {
-    char: '9',
-    numCycles: 1,
-    name: '',
-    description: 'Test head touching relative (same genome)'
+    char: 'p',
+    description: 'If head touching relative'
+  },
+  [GenomeCode.TestCarryingBarrier]: {
+    char: 'q',
+    description: 'If carrying barrier'
+  },
+  [GenomeCode.TestNearbyRelative0]: {
+    char: 'r',
+    description: 'If 0 relatives nearby'
+  },
+  [GenomeCode.TestNearbyRelative1]: {
+    char: 's',
+    description: 'If 1 relative nearby'
+  },
+  [GenomeCode.TestNearbyRelativeMany]: {
+    char: 't',
+    description: 'If many relatives nearby'
   },
 
 
@@ -297,13 +348,13 @@ export const GenomeCodeToInfoMap: {
     description: 'Restart'
   },
 
-  [GenomeCode.Reverse]: {
-    char: 'r',
-    disabled: true,
-    numCycles: 0,
-    name: '',
-    description: 'Reverse'
-  },
+  // [GenomeCode.Reverse]: {
+  //   char: 'r',
+  //   disabled: true,
+  //   numCycles: 0,
+  //   name: '',
+  //   description: 'Reverse'
+  // },
 
   [GenomeCode.NextMarker]: {
     char: ']',
@@ -314,28 +365,28 @@ export const GenomeCodeToInfoMap: {
   },
 
 
-  [GenomeCode.MarkerA]: {
-    char: 'a',
-    numCycles: 0,
-    name: '',
-    description: 'Marker A'
-  },
+  // [GenomeCode.MarkerA]: {
+  //   char: 'a',
+  //   numCycles: 0,
+  //   name: '',
+  //   description: 'Marker A'
+  // },
 
-  [GenomeCode.MarkerB]: {
-    char: 'b',
-    disabled: true,
-    numCycles: 0,
-    name: '',
-    description: 'Marker B'
-  },
+  // [GenomeCode.MarkerB]: {
+  //   char: 'b',
+  //   disabled: true,
+  //   numCycles: 0,
+  //   name: '',
+  //   description: 'Marker B'
+  // },
 
-  [GenomeCode.MarkerC]: {
-    char: 'c',
-    disabled: true,
-    numCycles: 0,
-    name: '',
-    description: 'Marker C'
-  },
+  // [GenomeCode.MarkerC]: {
+  //   char: 'c',
+  //   disabled: true,
+  //   numCycles: 0,
+  //   name: '',
+  //   description: 'Marker C'
+  // },
 
 
   [GenomeCode.GoToA]: {

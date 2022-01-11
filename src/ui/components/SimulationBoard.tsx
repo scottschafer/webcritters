@@ -10,6 +10,8 @@ import { computed, observable } from "mobx";
 import { SettingsEditorAdvanced, SettingsEditorBasic } from "./SettingsEditor";
 
 import './SimulationBoard.scss'
+import { eAppMode } from "../App";
+import { WorldDetails } from "../../common/WorldDetails";
 
 type Props = {
 }
@@ -22,6 +24,7 @@ export class SimulationBoard extends React.Component<Props> {
   componentRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
   canvasRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
   canvasDetailRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
+  canvasPlayRef: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
   mouseDownInBoard = false;
 
   static readonly canvasStyle = {
@@ -119,172 +122,179 @@ export class SimulationBoard extends React.Component<Props> {
     ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
     ctxDetails.closePath();
     ctxDetails.clip();
-
   }
 
-  componentDidUpdate() {
-    const canvas = this.canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const byteArray = simulationStore.simulation.canvasBuffer;
-        const clamped = new Uint8ClampedArray(byteArray);
-        const img = new ImageData(
-          clamped,
-          simulationStore.config.width,
-          simulationStore.config.height
-        );
-        ctx.putImageData(img, 0, 0);
-        if (simulationStore.details && simulationStore.settings.showPreview) {
-          // ctx.strokeStyle = 'black';
-          // ctx.strokeRect(simulationStore.details.x - 2, simulationStore.details.y - 2, SimulationConstants.detailsDim + 4, SimulationConstants.detailsDim + 4);
+  renderToBoardCanvas() {
+    if (simulationStore.appMode !== eAppMode.Play) {
+      const canvas = this.canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
           ctx.strokeStyle = 'rgba(255,255,255,1)';
           ctx.lineWidth = 2;
           ctx.shadowColor = 'rgba(0,0,0)';
           ctx.shadowBlur = 4;
-          // ctx.shadowOffsetX = 30;
-          // ctx.shadowOffsetY = 20;
-          // ctx.strokeRect(simulationStore.details.x - 1, simulationStore.details.y - 1, SimulationConstants.detailsDim + 2, SimulationConstants.detailsDim + 2);
-
-          const ctxDetails = this.canvasDetailRef.current.getContext('2d');
-
-          // Create a circular clipping path
-          // ctxDetails.beginPath();
-          // const r = ctxDetails.canvas.width / 2;
-          // ctxDetails.arc(r, r, r, 0, Math.PI * 2, true);
-          // ctxDetails.closePath();
-          // ctxDetails.clip();
-
-          // ctxDetails.imageSmoothingEnabled = false;
-
-          // ctxDetails.drawImage(canvas,
-          //   simulationStore.details.x,
-          //   simulationStore.details.y,
-          //   SimulationConstants.detailsDim,
-          //   SimulationConstants.detailsDim,
-          //   0, 0, SimulationConstants.worldDim, SimulationConstants.worldDim);
-
-          let pixelSize = simulationStore.config.width / SimulationConstants.detailsDim;
-
-          ctxDetails.fillStyle = 'black';
-          ctxDetails.lineCap = 'round';
-          ctxDetails.fillRect(0, 0, simulationStore.config.width, simulationStore.config.height);
-
-          simulationStore.details.dots.forEach(dot => {
-            ctxDetails.fillStyle = colorToRGBStyle(dot.color);
-            ctxDetails.fillRect((dot.x - simulationStore.details.x) * pixelSize, (dot.y - simulationStore.details.y) * pixelSize, pixelSize, pixelSize);
-          });
-          const critters = Object.values(simulationStore.details.critters);
-          critters.forEach(critter => {
-            if (!critter.genome) {
-              return;
-            }
-            const alpha = (critter.energy > 0) ? (critter.energy / critter.spawnEnergy) : 0;
-            const points: Array<{ x: number, y: number }> = [];
-            if (critter.length > 20) {
-              debugger;
-            }
-            for (let i = 0; i < critter.length; i++) {
-
-              let point = decodePoint(critter.cellPositions[i]);
-
-              point.x = (point.x - simulationStore.details.x) * pixelSize;
-              point.y = (point.y - simulationStore.details.y) * pixelSize;
-
-              if (point.x < 0 || point.y < 0 || point.x >= simulationStore.config.width || point.y >= simulationStore.config.height) {
-                continue;
-              }
-              points.push(point);
-              // ctxDetails.fillRect(point.x, point.y, pixelSize, pixelSize);
-            }
-
-            if (points.length) {
-              if (points.length > 10) {
-                debugger;
-              }
-              const color = critter.color; // critter.photosynthesizing ? ColorGreen : critter.color;
-              ctxDetails.lineWidth = (points.length === 1) ? pixelSize : pixelSize * .7;
-
-              const genome = critter.genome.asString;
-
-              ctxDetails.beginPath();
-              ctxDetails.moveTo(points[0].x + pixelSize / 2, points[0].y + pixelSize / 2);
-              for (let i = 0; i < points.length; i++) {
-                ctxDetails.lineTo(points[i].x + pixelSize / 2, points[i].y + pixelSize / 2);
-              }
-              ctxDetails.strokeStyle = colorToRGBStyle(color, alpha);
-              ctxDetails.stroke();
-              ctxDetails.closePath();
-
-              if (critter.photosynthesizing && genome.length > 1) {
-                ctxDetails.beginPath();
-                ctxDetails.strokeStyle = `rgba(0,255,0,${alpha})`;
-
-                ctxDetails.lineWidth = pixelSize * .7;
-                let lastPoint = points[points.length - 1]
-                ctxDetails.moveTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
-
-                for (let i = 0; i < Math.min(points.length, critter.lengthPhotoCells); i++) {
-                  lastPoint = points[points.length - 1 - i]
-                  ctxDetails.lineTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
-                }
-                ctxDetails.stroke();
-                ctxDetails.closePath();
-
-              }
-
-              if (critter.genome.asString !== PhotosynthesizeGenome) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
-                // ctxDetails.fillStyle = 'white';
-                ctxDetails.strokeStyle = `rgba(255,255,255,${alpha})`
-                ctxDetails.lineWidth = 2
-
-
-                // ctxDetails.strokeStyle = 'white';
-                // ctxDetails.lineWidth = 1;
-                const triangleSize = pixelSize * .4;
-                const cx = points[0].x + pixelSize / 2;
-                const cy = points[0].y + pixelSize / 2;
-                const orientation = critter.orientation;
-                ctxDetails.beginPath();
-
-
-                switch (orientation) {
-                  case 0:
-                    // up
-                    ctxDetails.moveTo(cx, cy - triangleSize);
-                    ctxDetails.lineTo(cx + triangleSize, cy + triangleSize);
-                    ctxDetails.lineTo(cx - triangleSize, cy + triangleSize);
-                    break;
-
-                  case 1: // right
-                    ctxDetails.moveTo(cx + triangleSize, cy);
-                    ctxDetails.lineTo(cx - triangleSize, cy + triangleSize);
-                    ctxDetails.lineTo(cx - triangleSize, cy - triangleSize);
-                    break;
-
-                  case 2: // down
-                    ctxDetails.moveTo(cx, cy + triangleSize);
-                    ctxDetails.lineTo(cx + triangleSize, cy - triangleSize);
-                    ctxDetails.lineTo(cx - triangleSize, cy - triangleSize);
-                    break;
-                  case 3: // left
-                    ctxDetails.moveTo(cx - triangleSize, cy);
-                    ctxDetails.lineTo(cx + triangleSize, cy + triangleSize);
-                    ctxDetails.lineTo(cx + triangleSize, cy - triangleSize);
-                    break;
-                }
-                ctxDetails.closePath();
-                // ctxDetails.fill();
-
-                ctxDetails.stroke();
-                // ctxDetails.closePath();
-              }
-            }
-          });
+    
+          const byteArray = simulationStore.simulation.canvasBuffer;
+          const clamped = new Uint8ClampedArray(byteArray);
+          const img = new ImageData(
+            clamped,
+            simulationStore.config.width,
+            simulationStore.config.height
+          );
+          ctx.putImageData(img, 0, 0);
         }
-
       }
     }
+  }
+
+  renderDetails(details: WorldDetails, pixelSize: number, ctxDetails: CanvasRenderingContext2D) {
+
+    ctxDetails.fillStyle = 'black';
+    ctxDetails.lineCap = 'round';
+    ctxDetails.fillRect(0, 0, simulationStore.config.width, simulationStore.config.height);
+
+    simulationStore.details.dots.forEach(dot => {
+      ctxDetails.fillStyle = colorToRGBStyle(dot.color);
+      ctxDetails.fillRect((dot.x - simulationStore.details.x) * pixelSize, (dot.y - simulationStore.details.y) * pixelSize, pixelSize, pixelSize);
+    });
+    const critters = Object.values(simulationStore.details.critters);
+    critters.forEach(critter => {
+      if (!critter.genome) {
+        return;
+      }
+      const alpha = (critter.energy > 0) ? (critter.energy / critter.spawnEnergy) : 0;
+      const points: Array<{ x: number, y: number }> = [];
+      if (critter.length > 20) {
+        debugger;
+      }
+      for (let i = 0; i < critter.length; i++) {
+
+        let point = decodePoint(critter.cellPositions[i]);
+
+        point.x = (point.x - simulationStore.details.x) * pixelSize;
+        point.y = (point.y - simulationStore.details.y) * pixelSize;
+
+        if (point.x < 0 || point.y < 0 || point.x >= simulationStore.config.width || point.y >= simulationStore.config.height) {
+          continue;
+        }
+        points.push(point);
+        // ctxDetails.fillRect(point.x, point.y, pixelSize, pixelSize);
+      }
+
+      if (points.length) {
+        if (points.length > 10) {
+          debugger;
+        }
+        const color = critter.color; // critter.photosynthesizing ? ColorGreen : critter.color;
+        ctxDetails.lineWidth = (points.length === 1) ? pixelSize : pixelSize * .7;
+
+        const genome = critter.genome.asString;
+
+        ctxDetails.beginPath();
+        ctxDetails.moveTo(points[0].x + pixelSize / 2, points[0].y + pixelSize / 2);
+        for (let i = 0; i < points.length; i++) {
+          ctxDetails.lineTo(points[i].x + pixelSize / 2, points[i].y + pixelSize / 2);
+        }
+        ctxDetails.strokeStyle = colorToRGBStyle(color, alpha);
+        ctxDetails.stroke();
+        ctxDetails.closePath();
+
+        if (critter.photosynthesizing && genome.length > 1) {
+          ctxDetails.beginPath();
+          ctxDetails.strokeStyle = `rgba(0,255,0,${alpha})`;
+
+          ctxDetails.lineWidth = pixelSize * .7;
+          let lastPoint = points[points.length - 1]
+          ctxDetails.moveTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
+
+          for (let i = 0; i < Math.min(points.length, critter.lengthPhotoCells); i++) {
+            lastPoint = points[points.length - 1 - i]
+            ctxDetails.lineTo(lastPoint.x + pixelSize / 2, lastPoint.y + pixelSize / 2);
+          }
+          ctxDetails.stroke();
+          ctxDetails.closePath();
+
+        }
+
+        if (critter.genome.asString !== PhotosynthesizeGenome) { // }.includes(GenomeCode.Move) || critter.genomeInfo.genome.length > 1) {
+          // ctxDetails.fillStyle = 'white';
+          ctxDetails.strokeStyle = `rgba(255,255,255,${alpha})`
+          ctxDetails.lineWidth = 2
+
+
+          // ctxDetails.strokeStyle = 'white';
+          // ctxDetails.lineWidth = 1;
+          const triangleSize = pixelSize * .4;
+          const cx = points[0].x + pixelSize / 2;
+          const cy = points[0].y + pixelSize / 2;
+          const orientation = critter.orientation;
+          ctxDetails.beginPath();
+
+
+          switch (orientation) {
+            case 0:
+              // up
+              ctxDetails.moveTo(cx, cy - triangleSize);
+              ctxDetails.lineTo(cx + triangleSize, cy + triangleSize);
+              ctxDetails.lineTo(cx - triangleSize, cy + triangleSize);
+              break;
+
+            case 1: // right
+              ctxDetails.moveTo(cx + triangleSize, cy);
+              ctxDetails.lineTo(cx - triangleSize, cy + triangleSize);
+              ctxDetails.lineTo(cx - triangleSize, cy - triangleSize);
+              break;
+
+            case 2: // down
+              ctxDetails.moveTo(cx, cy + triangleSize);
+              ctxDetails.lineTo(cx + triangleSize, cy - triangleSize);
+              ctxDetails.lineTo(cx - triangleSize, cy - triangleSize);
+              break;
+            case 3: // left
+              ctxDetails.moveTo(cx - triangleSize, cy);
+              ctxDetails.lineTo(cx + triangleSize, cy + triangleSize);
+              ctxDetails.lineTo(cx + triangleSize, cy - triangleSize);
+              break;
+          }
+          ctxDetails.closePath();
+          // ctxDetails.fill();
+
+          ctxDetails.stroke();
+          // ctxDetails.closePath();
+        }
+      }
+    });
+  }  
+
+  renderToDetailCanvas() {
+    if (simulationStore.details && simulationStore.settings.showPreview && simulationStore.appMode !== eAppMode.Play) {
+
+      const ctxDetails = this.canvasDetailRef.current.getContext('2d');
+
+      let pixelSize = simulationStore.config.width / SimulationConstants.detailsDim;
+
+      this.renderDetails(simulationStore.details, pixelSize, ctxDetails);
+    }
+  }
+
+  renderToPlayCanvas() {
+    if (simulationStore.appMode === eAppMode.Play) {
+      const ctxDetails = this.canvasPlayRef.current.getContext('2d');
+      const {playDetails} = simulationStore;
+
+      if (playDetails) {
+        let pixelSize = simulationStore.config.width / SimulationConstants.playDim;
+
+        this.renderDetails(playDetails, pixelSize, ctxDetails);
+       }
+    }
+  }
+
+  componentDidUpdate() {
+    this.renderToBoardCanvas();
+    this.renderToDetailCanvas();
+    this.renderToPlayCanvas();
   }
 
   mouseX = 0;
@@ -358,6 +368,13 @@ export class SimulationBoard extends React.Component<Props> {
   }
 
   render() {
+
+    const {appMode} = simulationStore
+
+    const showEntireBoard = (appMode !== eAppMode.Play)
+    const showCloseup = (appMode !== eAppMode.Play) && simulationStore.settings.showPreview
+    const showPlayboard = (appMode === eAppMode.Play)
+
     return (
       <div className='SimulationBoard'
         onMouseDown={this.handleMouseDownBoard}
@@ -369,17 +386,21 @@ export class SimulationBoard extends React.Component<Props> {
         >
           <label>{simulationStore.turn}</label>
           <div className='simulationContents' style={this.renderStyle}>
-            <canvas
+            {showEntireBoard && <canvas
               ref={this.canvasRef}
               width={simulationStore.config.width} height={simulationStore.config.height}
-            />
-            <canvas
+            />}
+            {showCloseup && <canvas
               className='canvasDetails'
               ref={this.canvasDetailRef}
               onMouseMove={this.handleMouseMoveDetails}
               width={simulationStore.config.width} height={simulationStore.config.height}
               style={this.closeupStyle}
-            ></canvas>
+            ></canvas>}
+            {showPlayboard && <canvas
+              ref={this.canvasPlayRef}
+              width={simulationStore.config.width} height={simulationStore.config.height}
+            />}
           </div>
         </div>
         <div className='controls'>

@@ -15,10 +15,10 @@ export class SimulationSettings {
   turnCost = 1;
   baseInstructionCost = 0.1;
   photoSynthesisEnergy = 2.5;
-  moveCost = 15;
+  moveCost = 10;
   eatCost = 1;
   digestionEfficiencyPercent = 80;
-  biteStrength = .3;
+  biteStrength = .75;
   sleepCount = 10;
 
   timer1Length = 10;
@@ -28,7 +28,7 @@ export class SimulationSettings {
 
   limitCellLength = 5;
 
-  addFoodCount = 200; //100;
+  addFoodCount = 50;
 
   showPreview = true;
   sleepAfterSpawnCount = 0; // 25;
@@ -40,4 +40,6 @@ export class SimulationSettings {
 
   magnifierSize = 32;
   magnification = 8;
+
+  sleepWhenCarryingBarrier = 0;
 }

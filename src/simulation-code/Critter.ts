@@ -1,15 +1,24 @@
 import { SimulationConstants } from '../common/SimulationConstants';
-import { ColorBlack, ColorDeathRay, ColorGreen } from './Colors';
+import { ColorBarrier, ColorBlack, ColorDeathRay, ColorFood, ColorGray, ColorGreen } from './Colors';
 import { Genome } from './Genome';
 import { GenomeCode, GenomeCodeToInfoMap } from './GenomeCode';
 import { Simulation } from './Simulation';
-import { decodePoint, Orientation } from './Orientation';
+import { decodePoint, makePoint, Orientation } from './Orientation';
 import { SimulationSettings } from './SimulationSettings';
 // import { World } from './World';
 // import { SimulationSettings } from './SimulationSettings';
 
 const numConditions = 5;
 
+enum blockedReason {
+  none = 0,
+  self = 1,
+  otherCritter,
+  relatedCritter,
+  barrier,
+  food,
+  foodButRelative
+}
 export class Critter {
   genome: Genome;
   cellPositions = new Array<number>(SimulationConstants.maxCritterLength);
@@ -37,13 +46,14 @@ export class Critter {
   timer1: number;
   timer2: number;
   sleepCount: number;
-  blocked: boolean;
+  blocked: number;
   lastTailPoint: number;
   bitten: boolean;
   spawnedCount: number;
   turnDirection: number;
   reverseIf: boolean;
   failed: boolean;
+  carryingBarrierCount: number;
 
   constructor(public readonly critterIndex: number) {
     for (let i = 0; i < SimulationConstants.maxCritterLength; i++) {
@@ -65,7 +75,7 @@ export class Critter {
       timer1: -1,
       timer2: -1,
       sleepCount: 0,
-      blocked: false,
+      blocked: 0,
       photosynthesizing: 0,
       bitten: false,
       forceSpawn: false,
@@ -76,7 +86,8 @@ export class Critter {
       reverseIf: false,
       colorPhotosynthesizing: ColorGreen,
       testTurnGreenCount: 0,
-      failed: false
+      failed: false,
+      carryingBarrierCount: 0
     });
 
     const { settings } = globals;
@@ -220,8 +231,9 @@ export class Critter {
     // }
 
 
-    if (!SimulationConstants.allowDeathBirth && !this.wasEaten) {
+    if (!SimulationConstants.allowDeathBirth && !this.wasEaten && this.genome.count > 1) {
       this.energy = Math.max(this.energy, 20);
+      this.age = 10000;
     }
 
     const { codes, codesInfo } = this.genome;
@@ -384,35 +396,63 @@ export class Critter {
           break;
 
         case GenomeCode.OrientUp:
-          this.orientation = 1;
+          this.orientation = 0;
           break;
 
         case GenomeCode.OrientDown:
-          this.orientation = 3;
-          break;
-
-        case GenomeCode.OrientRight:
-          this.orientation = 3;
-          break;
-
-        case GenomeCode.OrientLeft:
           this.orientation = 2;
           break;
 
-        case GenomeCode.SetTimer1:
-          this.timer1 += settings.timer1Length;
+        case GenomeCode.OrientRight:
+          this.orientation = 1;
           break;
 
-        case GenomeCode.SetTimer2:
-          this.timer2 += settings.timer2Length;
+        case GenomeCode.OrientLeft:
+          this.orientation = 3;
           break;
 
-        case GenomeCode.TestSeeRelative: {
-          let distance = (settings.sightDistance); // * (this.pc + 1);
-          this.testSeeRelative(globals, distance);
-          this.executeTest();
+        case GenomeCode.PickupBarrier:
+          this.pickupBarrier(globals);
           break;
-        }
+
+        case GenomeCode.DropBarrier:
+          this.dropBarrier(globals);
+          break;
+
+        case GenomeCode.PullBarrier:
+          this.pullBarrier(globals);
+          break;
+
+        case GenomeCode.PushBarrierForward:
+          this.pushBarrier(globals, 0);
+          break;
+
+        case GenomeCode.PushBarrierLeft:
+          this.pushBarrier(globals, -1);
+          break;
+
+        case GenomeCode.PushBarrierRight:
+          this.pushBarrier(globals, 1);
+          break;
+
+        case GenomeCode.SwapLeftBarrier:
+          this.swapBarrier(globals, 3);
+          break;
+
+        case GenomeCode.SwapRightBarrier:
+          this.swapBarrier(globals, 1);
+          break;
+
+        // case GenomeCode.SetTimer1:
+        //   this.timer1 += settings.timer1Length;
+        //   break;
+
+        // case GenomeCode.SetTimer2:
+        //   this.timer2 += settings.timer2Length;
+        //   break;
+
+
+
 
         case GenomeCode.TestSeeFood:
           // case GenomeCode.TestSeeFoodOther:
@@ -433,20 +473,66 @@ export class Critter {
           }
           break;
 
-        case GenomeCode.TestBlocked:
-          this.condition = this.blocked;
-          this.blocked = false;
+        case GenomeCode.TestSeeRelative: {
+          let distance = (settings.sightDistance); // * (this.pc + 1);
+          this.testSeeRelative(globals, distance);
           this.executeTest();
+          break;
+        }
 
-          // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+        case GenomeCode.TestBlocked:
+          this.condition = this.blocked !== blockedReason.none;
+          this.executeTest();
           break;
 
-        case GenomeCode.TestBitten:
-          this.condition = this.bitten;
-          this.bitten = false;
-          this.executeTest();
+        // - TestSeeFood,
+        // - TestSeeRelative,
+        // - TestBlocked,
+        // - TestBlockedBySelf,
+        // - TestBlockedByOtherCritter,
+        // - TestBlockedByRelatedCritter,
+        // - TestBlockedByBarrier,
+        // - TestBlockedByFood,
+        // - TestBlockedByRelatedFood,
 
-          // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+        // TestSpawned,
+        // TestBitten,
+        // TestTurn,
+        // TestCoinFlip,
+        // TestFailed, // = '6'
+        // TestUnfolded, // = '7',
+        // TestTouchingRelative, // = '9',
+        // TestCarryingBarrier,
+
+
+        case GenomeCode.TestBlockedBySelf:
+          this.condition = this.blocked === blockedReason.self;
+          this.executeTest();
+          break;
+
+        case GenomeCode.TestBlockedByOtherCritter:
+          this.condition = this.blocked === blockedReason.otherCritter;
+          this.executeTest();
+          break;
+
+        case GenomeCode.TestBlockedByRelatedCritter:
+          this.condition = this.blocked === blockedReason.relatedCritter;
+          this.executeTest();
+          break;
+
+        case GenomeCode.TestBlockedByBarrier:
+          this.condition = this.blocked === blockedReason.barrier;
+          this.executeTest();
+          break;
+
+        case GenomeCode.TestBlockedByFood:
+          this.condition = this.blocked === blockedReason.food;
+          this.executeTest();
+          break;
+
+        case GenomeCode.TestBlockedByRelatedFood:
+          this.condition = this.blocked === blockedReason.foodButRelative;
+          this.executeTest();
           break;
 
         case GenomeCode.TestSpawned:
@@ -456,32 +542,53 @@ export class Critter {
           // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
-        case GenomeCode.TestLeftSide:
-          this.condition = decodePoint(this.cellPositions[0]).x < 128;
+        case GenomeCode.TestBitten:
+          this.condition = this.bitten;
+          this.bitten = false;
           this.executeTest();
           break;
 
-        case GenomeCode.TestTopSide:
-          this.condition = decodePoint(this.cellPositions[0]).y < 128;
+        case GenomeCode.TestNearbyRelative0:
+          this.condition = this.countNearbyRelatives(globals) === 0;
           this.executeTest();
           break;
 
-
-        case GenomeCode.TestTimer1:
-          this.condition = this.timer1 > 0;
-          // this.condition = this.timer1 === 0;
-          // this.timer1 = -1;
+        case GenomeCode.TestNearbyRelative1:
+          this.condition = this.countNearbyRelatives(globals) === 1;
           this.executeTest();
-          // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
 
-        case GenomeCode.TestTimer2:
-          this.condition = this.timer2 > 0;
-          // this.condition = this.timer2 === 0;
-          // this.timer2 = -2;
+        case GenomeCode.TestNearbyRelativeMany:
+          this.condition = this.countNearbyRelatives(globals) > 1;
           this.executeTest();
-          // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           break;
+
+        // case GenomeCode.TestLeftSide:
+        //   this.condition = decodePoint(this.cellPositions[0]).x < 128;
+        //   this.executeTest();
+        //   break;
+
+        // case GenomeCode.TestTopSide:
+        //   this.condition = decodePoint(this.cellPositions[0]).y < 128;
+        //   this.executeTest();
+        //   break;
+
+
+        // case GenomeCode.TestTimer1:
+        //   this.condition = this.timer1 > 0;
+        //   // this.condition = this.timer1 === 0;
+        //   // this.timer1 = -1;
+        //   this.executeTest();
+        //   // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+        //   break;
+
+        // case GenomeCode.TestTimer2:
+        //   this.condition = this.timer2 > 0;
+        //   // this.condition = this.timer2 === 0;
+        //   // this.timer2 = -2;
+        //   this.executeTest();
+        //   // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+        //   break;
 
         case GenomeCode.TestUnfolded:
           this.condition = this.unfolded;
@@ -490,12 +597,18 @@ export class Critter {
           break;
 
         case GenomeCode.TestTurn: {
-          ++this.counters[this.pc];
-          this.condition = this.pc < this.counters[this.pc]
+          // ++this.counters[this.pc];
+          // this.condition = this.pc < this.counters[this.pc]
 
-          // const turnPhase = (this.pc + 1) * 5;
-          // this.condition = !!(Math.floor(globals.turn / turnPhase) & 1);
+          const turnPhase = (this.pc + 1) * 2;
+          this.condition = !!(Math.floor(globals.turn / turnPhase) & 1);
           // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
+          this.executeTest();
+          break;
+        }
+
+        case GenomeCode.TestCoinFlip: {
+          this.condition = Math.random() > .5;
           this.executeTest();
           break;
         }
@@ -508,6 +621,12 @@ export class Critter {
 
         case GenomeCode.TestTouchingRelative: {
           this.testTouchingRelative(globals);
+          this.executeTest();
+          break;
+        }
+
+        case GenomeCode.TestCarryingBarrier: {
+          this.condition = this.carryingBarrierCount > 0;
           this.executeTest();
           break;
         }
@@ -555,27 +674,37 @@ export class Critter {
   }
 
 
-  setPhotosynthesizing(globals: Simulation, value: boolean) {
+  setPhotosynthesizing(globals: Simulation, value: boolean, lengthPhotoCells = 1 ) {
+    value = value && this.unfolded;
+
     if (value !== !!this.photosynthesizing) {
       this.photosynthesizing = value ? globals.settings.photosynthesisDuration : 0;
-      this.lengthPhotoCells = this.photosynthesizing ? 1 : 0;
-      if (value) {
-        if (this.length > 1 && this.unfolded) {
-          const color = this.photosynthesizing ? this.genome.colorPhotosynthesizing : this.color;
+      this.lengthPhotoCells = this.photosynthesizing ? lengthPhotoCells : 0;
 
-          globals.setPixel(this.cellPositions[this.length - 1], color, this.critterIndex);
+      for (let i = 0; i < this.length; i++) {
+        let color = this.color;
+        if (this.photosynthesizing && i >= (this.length - this.lengthPhotoCells)) {
+          color = this.genome.colorPhotosynthesizing;
         }
-      } else {
-        for (let i = 0; i < this.length; i++) {
-          globals.setPixel(this.cellPositions[i], this.color, this.critterIndex);
-        }
+        globals.setPixel(this.cellPositions[i], color, this.critterIndex);
       }
+      // if (value) {
+      //   if (this.length > 1 && this.unfolded) {
+      //     const color = this.photosynthesizing ? this.genome.colorPhotosynthesizing : this.color;
+
+      //     globals.setPixel(this.cellPositions[this.length - 1], color, this.critterIndex);
+      //   }
+      // } else {
+      //   for (let i = 0; i < this.length; i++) {
+      //     globals.setPixel(this.cellPositions[i], this.color, this.critterIndex);
+      //   }
+      // }
     }
   };
 
   move(globals: Simulation) {
     const { settings } = globals;
-    this.blocked = false;
+    this.blocked = blockedReason.none;
     // this.bitten = false;
     const delta = Orientation.deltas[this.orientation];
     const newHead = (this.cellPositions[0] + delta) & 0xffff;
@@ -588,9 +717,12 @@ export class Critter {
     this.failed = false;
     if (destPixel === ColorBlack || destPixel === ColorDeathRay /* || (! this.photosynthesizing && hitCritter === this) */) {
       this.energy -= settings.moveCost;
+      if (this.carryingBarrierCount) {
+        this.sleepCount = globals.settings.sleepWhenCarryingBarrier;
+      }
       // this.energy -= settings.moveCost / 2;
       // this.setPhotosynthesizing(globals, false);
-      // this.hypermode = false;
+      this.hypermode = false;
 
       const color = this.color; // this.photosynthesizing ? this.colorPhotosynthesizing : this.color;
 
@@ -608,25 +740,24 @@ export class Critter {
       if (this.length > 1) {
         this.unfolded = this.cellPositions[this.length - 2] !== this.cellPositions[this.length - 1];
       }
+
+      // if photosynthesizing, turn off photosynthesis (?)
       if (this.photosynthesizing && this.unfolded) {
         this.photosynthesizing = 0;
         this.lengthPhotoCells = 0;
         for (let i = 0; i < this.length; i++) {
           globals.setPixel(this.cellPositions[i], color, this.critterIndex);
         }
-
-        // this.lengthPhotoCells = 1;
-        // for (let i = 0; i < (this.length - 1); i++) {
-        //   globals.setPixel(this.cellPositions[i], color, this.critterIndex);
-        // }
-  
-        // globals.setPixel(this.cellPositions[this.length - this.lengthPhotoCells], ColorGreen, this.critterIndex);
-        // this.lengthPhotoCells = Math.max(this.lengthPhotoCells - 1, 1);
       }
 
       if (tail !== this.cellPositions[this.length - 1]) {
 
-        globals.setPixel(tail, ColorBlack);
+        if (globals.pixelArray[tail] !== ColorBarrier) {
+          globals.setPixel(tail, ColorBlack);
+        } else {
+          globals.pointToCritterIndex[tail] = 0
+        }
+
         this.lastTailPoint = tail;
         // debugger;
 
@@ -643,17 +774,202 @@ export class Critter {
 
       }
     } else {
-      this.blocked = true;
+      if (hitCritter === this) {
+        this.blocked = blockedReason.self;
+      } else if (destPixel === ColorFood) {
+        if (hitCritter) {
+          if (hitCritter.genome === this.genome) {
+            this.blocked = blockedReason.foodButRelative;
+          } else {
+            this.blocked = blockedReason.food;
+          }
+        } else {
+          this.blocked = blockedReason.food;
+        }
+      } else if (hitCritter) {
+        if (hitCritter.genome === this.genome) {
+          this.blocked = blockedReason.relatedCritter;
+        } else {
+          this.blocked = blockedReason.otherCritter;
+        }
+      } else if (destPixel === ColorBarrier) {
+        this.blocked = blockedReason.barrier;
+      }
       this.failed = true;
     }
     this.validate(globals);
-
   }
 
+  pickupBarrier(globals: Simulation) {
+    const delta = Orientation.deltas[this.orientation];
+    const newHead = (this.cellPositions[0] + delta) & 0xffff;
+
+    const destPixel = globals.pixelArray[newHead];
+    this.failed = true;
+    if (destPixel === ColorBarrier) {
+      let numUnfoldedCells = 0;
+      let lastCellPos = null;
+
+      // count unfolded cells
+      for (let i = 0; i < this.length; i++) {
+        if (this.cellPositions[i] === lastCellPos) {
+          break;
+        }
+        ++numUnfoldedCells;
+        lastCellPos = this.cellPositions[i];
+      }
+
+      if ((this.carryingBarrierCount + 1) < numUnfoldedCells) {
+        globals.setPixel(newHead, ColorBlack);
+        ++this.carryingBarrierCount;
+        this.failed = false;
+        this.sleepCount = globals.settings.sleepWhenCarryingBarrier;
+      }
+    }
+  }
+
+  dropBarrier(globals: Simulation) {
+    this.failed = true;
+    if (this.carryingBarrierCount) {
+
+      const delta = Orientation.deltas[(this.orientation + 1) % 4];
+      const dropPoint = (this.cellPositions[0] + delta) & 0xffff;
+
+      if (globals.pixelArray[dropPoint] === ColorBlack) {
+        this.failed = false;
+        globals.setPixel(this.lastTailPoint, ColorBarrier);
+        --this.carryingBarrierCount;
+      }
+    }
+  }
+
+
+  pullBarrier(globals: Simulation) {
+    this.failed = true;
+    const delta = Orientation.deltas[this.orientation];
+    const newHead = (this.cellPositions[0] + delta) & 0xffff;
+    const destPixel = globals.pixelArray[newHead];
+
+    if (destPixel === ColorBarrier && this.unfolded) {
+      // we're facing a barrier
+      if (globals.pixelArray[this.lastTailPoint] === ColorBlack) {
+
+        const newLastTail = this.lastTailPoint + Orientation.deltas[(this.orientation + 2) % 4];
+        if (globals.pixelArray[newLastTail] === ColorBlack) {
+          // and our previous tail point is free, so we can back up
+          this.failed = false;
+          this.numPhotosynthesizeCells = 0;
+
+          // clear barrier point
+          globals.setPixel(newHead, ColorBlack)
+
+          // now move barrer to current head
+          globals.setPixel(this.cellPositions[0], ColorBarrier)
+
+          // now backup
+          this.cellPositions[this.length - 1] = this.lastTailPoint;
+          globals.setPixel(this.lastTailPoint, this.color, this.critterIndex);
+
+          this.lastTailPoint = newLastTail;
+
+          for (let i = 0; i < this.length - 2; i++) {
+            this.cellPositions[i] = this.cellPositions[i + 1]
+          }
+          this.sleepCount = 100000;
+        }
+      }
+    }
+  }
+
+  pushBarrier(globals: Simulation, orientationOffset: number) {
+    this.failed = true;
+
+    const delta = Orientation.deltas[this.orientation];
+    const newHead = (this.cellPositions[0] + delta) & 0xffff;
+    const destPixel = globals.pixelArray[newHead];
+
+    if (destPixel === ColorBarrier) {
+        for (let i = 0; i < (orientationOffset ? 2 : 1); i++) {
+        const orientation = i ? this.orientation : ((this.orientation + orientationOffset + 4) % 4);
+        const delta = Orientation.deltas[orientation];
+        const newBarrierPt = (newHead + delta) & 0xffff;
+        if (globals.pixelArray[newBarrierPt] === ColorBlack) {
+          this.failed = false;
+          globals.setPixel(newBarrierPt, ColorBarrier)
+          globals.setPixel(newHead, ColorBlack)
+          break;
+          // this.move(globals)
+          // this.sleepCount = 2
+        }
+      }
+    }
+  }
+
+  swapBarrier(globals: Simulation, orientationOffset: number) {
+    this.failed = true;
+    const pickupPt = (this.cellPositions[0] + Orientation.deltas[(this.orientation + orientationOffset) % 4]) & 0xffff;
+    const dropPt = (this.cellPositions[0] + Orientation.deltas[(this.orientation + orientationOffset + 2) % 4]) & 0xffff;
+    if (globals.pixelArray[pickupPt] === ColorBarrier && globals.pixelArray[dropPt] === ColorBlack) {
+      this.failed = false;
+      globals.setPixel(dropPt, ColorBarrier)
+      globals.setPixel(pickupPt, ColorBlack)
+      this.sleepCount = 2
+    }
+  }
+
+
+  countNearbyRelatives(globals: Simulation) {
+    let count = 0;
+    let areaDim = this.length;
+    let halfAreaDim = Math.floor(areaDim / 2);
+    const { worldDim } = SimulationConstants;
+
+    let start = (this.cellPositions[0] - halfAreaDim - halfAreaDim * worldDim + worldDim * worldDim) & 0xffff;
+    for (let x = 0; x < areaDim; x++) {
+      for (let y = 0; y < areaDim; y++) {
+        const pt = (start + x + y * worldDim) & 0xffff;
+        const hitCritter = globals.critters[globals.pointToCritterIndex[pt]];
+        if (hitCritter && (hitCritter !== this) && (hitCritter.genome === this.genome) && (hitCritter.cellPositions[0] === pt)) {
+          ++count;
+        }
+      }
+    }
+    return count;
+  }
+
+  countNearbyBarriers(globals: Simulation) {
+    let count = 0;
+
+    let lastPos
+    for (let i = 0; i < this.length; i++) {
+
+    }
+    let areaDim = this.length;
+    let halfAreaDim = Math.floor(areaDim / 2);
+    const { worldDim } = SimulationConstants;
+
+    let start = (this.cellPositions[0] - halfAreaDim - halfAreaDim * worldDim + worldDim * worldDim) & 0xffff;
+    for (let x = 0; x < areaDim; x++) {
+      for (let y = 0; y < areaDim; y++) {
+        const pt = (start + x + y * worldDim) & 0xffff;
+        const hitCritter = globals.critters[globals.pointToCritterIndex[pt]];
+        if (hitCritter && (hitCritter !== this) && (hitCritter.genome === this.genome) && (hitCritter.cellPositions[0] === pt)) {
+          ++count;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Flip a critter so that its head becomes its tail, and vice versa
+   * @param globals 
+   */
   flip(globals: Simulation) {
     if (this.length > 1) {
       let photo = this.photosynthesizing;
-      if (photo) {
+      const {photosynthesizing, lengthPhotoCells} = this;
+      if (photosynthesizing) {
         this.setPhotosynthesizing(globals, false)
       }
 
@@ -664,9 +980,9 @@ export class Critter {
         this.cellPositions[j] = swap;
       }
       this.orientation = (this.orientation + 2) % 4;
-
+      this.lastTailPoint = this.cellPositions[this.length-1]
       if (photo) {
-        this.setPhotosynthesizing(globals, true)
+        this.setPhotosynthesizing(globals, true, lengthPhotoCells)
       }
     }
   }
@@ -683,7 +999,7 @@ export class Critter {
       if (index === this.critterIndex || !index) {
         // World.setPixel(this.cellPositions[i], ColorBlack);
       } else {
-//        debugger;
+        //        debugger;
       }
     }
   }
@@ -839,6 +1155,9 @@ export class Critter {
   }
 
   get isDead() {
-    return this.age > this.maxLifespan || this.energy <= 0; //-this.spawnEnergy;
+    if (SimulationConstants.allowDeathBirth) {
+      return this.age > this.maxLifespan || this.energy <= 0;
+    }
+    return this.energy <= 0 && this.genome && this.genome.count > 1;
   }
 }

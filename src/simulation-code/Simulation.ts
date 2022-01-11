@@ -6,7 +6,7 @@ import { SimulationConstants } from '../common/SimulationConstants';
 import { WorldDetails } from '../common/WorldDetails';
 import { WorldSummary } from '../common/WorldSummary';
 import { simulationStore } from '../ui/SimulationUIStore';
-import { ColorBlack, ColorDeathRay, ColorGray, ColorGreen } from './Colors';
+import { ColorBarrier, ColorBlack, ColorDeathRay, ColorFood, ColorGray, ColorGreen } from './Colors';
 import { Critter } from './Critter';
 import { Genome } from './Genome';
 import { GenomeCodeInfo, PhotosynthesizeGenome } from './GenomeCode';
@@ -46,6 +46,11 @@ export class Simulation {
 
 
   /* static*/ setPixel(point: number, color: number, critterIndex = 0) {
+
+    if (color !== ColorBarrier && color !== ColorBlack && color !== ColorDeathRay && color !== ColorFood && !critterIndex) {
+      debugger;
+    }
+
     this.pixelArray[point] = color;
 
     if (this.pointToCritterIndex[point]
@@ -113,31 +118,6 @@ export class Simulation {
 
     let x = follow.x;
     let y = follow.y;
-    // if (follow && typeof follow === 'object') {
-    //   x = follow.x;
-    //   y = follow.y;
-    // } else {
-    //   if (!follow) {
-    //     if (!this.numCritters) {
-    //       return result;
-    //     }
-
-    //     follow = 1;
-    //     let len = 0;
-    //     for (let i = 1; i < this.numCritters; i++) {
-    //       if (this.critters[i].genomeInfo) {
-    //         if (this.critters[i].length > len) {
-    //           follow = i;
-    //           len = this.critters[i].length;
-    //         }
-    //       }
-    //     }
-    //   }
-    //   const headPoint = this.critters[follow as number].cellPositions[0];
-    //   const headPointXY = decodePoint(headPoint);
-    //   x = Math.min(255 - dimension, Math.max(0, headPointXY.x - dimension / 2));
-    //   y = Math.min(255 - dimension, Math.max(0, headPointXY.y - dimension / 2));
-    // }
 
     result.x = x;
     result.y = y;
@@ -176,14 +156,32 @@ export class Simulation {
         // this.pixelArray[point] = ColorGray;
       }
 
-      for (let i = 64; i < 192; i++) {
-        if (i < 125 || i > 130) {
-          setBarrierPoint(makePoint(i, i));
-          setBarrierPoint(makePoint(256 - i, i));
 
-        }
+    for (let x = 0; x < SimulationConstants.barrierSize; x += 2) {
+      for (let y = 0; y < SimulationConstants.barrierSize; y++) {
+        const offsetX = 8;
+        const offsetY = 8;
+        this.setPixel(makePoint(x + offsetX, y + offsetY), ColorGray);
       }
     }
+
+    for (let x = 0; x < SimulationConstants.barrierSize; x++) {
+      for (let y = 0; y < SimulationConstants.barrierSize; y += 2) {
+        const offsetX = SimulationConstants.worldDim - SimulationConstants.barrierSize - 8;
+        const offsetY = SimulationConstants.worldDim - SimulationConstants.barrierSize - 8;
+        this.setPixel(makePoint(x + offsetX, y + offsetY), ColorGray);
+      }
+    }
+
+      // for (let i = 64; i < 192; i++) {
+      //   if (i < 125 || i > 130) {
+      //     setBarrierPoint(makePoint(i, i));
+      //     setBarrierPoint(makePoint(256 - i, i));
+
+      //   }
+      // }
+    }
+
   }
 
   reset() {
@@ -232,7 +230,7 @@ export class Simulation {
     }
   }
 
-  takeTurn(numTurns: number = 1): number {
+  takeTurn(numTurns: number = 1, playerControlledIndex = -1): number {
     if (this.takingTurn) {
       debugger;
     }
@@ -247,7 +245,9 @@ export class Simulation {
         if (critter.genome) {
 
           const critter = this.critters[iCritter];
-          critter.takeTurn(this);
+          if (i !== playerControlledIndex) {
+            critter.takeTurn(this);
+          }
 
           if (critter.isDead && (SimulationConstants.allowDeathBirth || critter.wasEaten)) { //  && (critter.genome.genome === GenomeCode.Photosynthesize || !SimulationConstants.testMode)) {
             this.kill(iCritter);
@@ -445,6 +445,7 @@ export class Simulation {
       const critter = this.critters[critterIndex];
 
       critter.init(genome, point, this);
+      critter.orientation = Math.floor(Math.random() * 4)
       result = critter;
 
       // this.setPixel(point, critter.color, critterIndex);
@@ -466,7 +467,14 @@ export class Simulation {
       color = (critter.photosynthesizing || critter.wasEaten) ? ColorBlack : ColorGreen;
     }
     for (let i = 0; i < critter.length; i++) {
-      this.setPixel(critter.cellPositions[i], color);
+      if (critter.carryingBarrierCount) {
+        --critter.carryingBarrierCount;
+        this.setPixel(critter.cellPositions[i], ColorBarrier);
+      } else {
+        if (this.pixelArray[critter.cellPositions[i]] !== ColorBarrier) {
+          this.setPixel(critter.cellPositions[i], color);
+        }
+      }
     }
     critter.genome = null;
     this.emptyCritterSlots[++this.emptyCritterSlotIndex] = iCritter;
