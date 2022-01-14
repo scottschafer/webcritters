@@ -61,7 +61,7 @@ export const colorToRGBStyle = (color: number, alpha = 1) => {
   GenomeColors.push(colorToNumber(255, 255, 0));
   GenomeColors.push(colorToNumber(255, 0, 255));
   GenomeColors.push(colorToNumber(0, 255, 255));
-  GenomeColors.push(colorToNumber(192, 192, 192));
+  GenomeColors.push(colorToNumber(220, 220, 220));
 
   GenomeColors.push(colorToNumber(128, 0, 32));
   GenomeColors.push(colorToNumber(0, 128, 32));

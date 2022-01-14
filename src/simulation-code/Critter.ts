@@ -91,7 +91,10 @@ export class Critter {
     });
 
     const { settings } = globals;
-    const length = this.length = Math.min(globals.settings.limitCellLength, genome.asString.length);
+    const length = this.length = Math.min(globals.settings.limitCellLength, genome.cellLength);
+    if (length > genome.asString.length) {
+      debugger
+    }
     this.testTurnGreenCount = this.genome.codes.length;
     this.unfolded = length === 1;
     this.color = this.genome.color;
@@ -338,7 +341,7 @@ export class Critter {
               }
             } else {
               this.setPhotosynthesizing(globals, true);
-              this.energy += settings.photoSynthesisEnergy; // * this.numPhotosynthesizeCells;
+              // this.energy += settings.photoSynthesisEnergy; // * this.numPhotosynthesizeCells;
             }
 
             // this.energy += settings.photoSynthesisEnergy * this.length;
@@ -600,7 +603,7 @@ export class Critter {
           // ++this.counters[this.pc];
           // this.condition = this.pc < this.counters[this.pc]
 
-          const turnPhase = (this.pc + 1) * 2;
+          const turnPhase = (this.pc + 1) * 5;
           this.condition = !!(Math.floor(globals.turn / turnPhase) & 1);
           // this.conditions[(this.conditionHead++) % numConditions] = this.condition;
           this.executeTest();
@@ -630,6 +633,11 @@ export class Critter {
           this.executeTest();
           break;
         }
+        case GenomeCode.TestCounter1GreaterThanCounter2: {
+          this.condition = this.counters[0] > this.counters[1]
+          this.executeTest();
+          break;
+        }
 
         case GenomeCode.IfCondition:
           this.condition = this.conditions[(--this.conditionHead + numConditions) % numConditions];
@@ -652,9 +660,21 @@ export class Critter {
         case GenomeCode.Restart:
           this.pc = this.startPc;
           this.turnDirection = 1;
-          for (let i = 0; i < this.counters.length; i++) {
-            this.counters[i] = 0;
-          }
+          // for (let i = 0; i < this.counters.length; i++) {
+          //   this.counters[i] = 0;
+          // }
+          break;
+
+        case GenomeCode.IncrementCounter1:
+          ++this.counters[0];
+          break;
+
+        case GenomeCode.IncrementCounter2:
+          ++this.counters[1];
+          break;
+
+        case GenomeCode.ResetCounters:
+          this.counters[0] = this.counters[1] = 0;
           break;
 
         case GenomeCode.Reverse:
@@ -755,7 +775,8 @@ export class Critter {
         if (globals.pixelArray[tail] !== ColorBarrier) {
           globals.setPixel(tail, ColorBlack);
         } else {
-          globals.pointToCritterIndex[tail] = 0
+          globals.setPixel(tail, ColorBarrier);
+//          globals.pointToCritterIndex[tail] = 0
         }
 
         this.lastTailPoint = tail;
@@ -1158,6 +1179,6 @@ export class Critter {
     if (SimulationConstants.allowDeathBirth) {
       return this.age > this.maxLifespan || this.energy <= 0;
     }
-    return this.energy <= 0 && this.genome && this.genome.count > 1;
+    return !this.genome || (this.energy <= 0 && this.genome && this.genome.count > 1);
   }
 }

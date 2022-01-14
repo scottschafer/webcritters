@@ -3,7 +3,7 @@ export class SimulationConstants {
   static readonly validate = false;
 
 
-  static readonly allowDeathBirth = true;
+  static readonly allowDeathBirth = true // true;
   static readonly insertEvolvedCritters = false ? {
     // 'E': 1,
     'LME': 0,

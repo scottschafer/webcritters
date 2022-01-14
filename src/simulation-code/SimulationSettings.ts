@@ -28,7 +28,7 @@ export class SimulationSettings {
 
   limitCellLength = 5;
 
-  addFoodCount = 50;
+  addFoodCount = 0; // 50;
 
   showPreview = true;
   sleepAfterSpawnCount = 0; // 25;

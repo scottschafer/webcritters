@@ -40,3 +40,34 @@
   font-style: italic;
   color: lightgray;
 }
+
+.ExplanatoryTextLogo {
+  position: absolute;
+  text-align: left;
+  z-index: 2;
+  left: 50%;
+  top: 10px;
+  width: 25%;
+  right: 20px;
+  overflow: auto;
+  background-color: #00000080;
+  color: rgba(255, 255, 255, .7);
+
+  td {
+    padding: 10px
+  }
+  h1 {
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  h3 {
+    margin-top: 0px;
+    text-align: center;
+  }
+
+  img {
+    width: 140px;
+    margin: 0 auto;
+  }
+}

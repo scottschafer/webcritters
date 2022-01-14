@@ -9,14 +9,28 @@ export class Genome {
   asString: string;
   color: number;
   colorPhotosynthesizing: number;
-  count: number;
+  count: number; // number of living critters with this genome
+  cellLength: number;
   firstTurn: number;
 
+
   constructor(src: string | Array<GenomeCode>, readonly ancestors: string) {
+    const origSrc = src;
+
     if (typeof src === 'string') {
+      // remove all the limit length characters before we produce the codes
+      this.cellLength = src.indexOf('^') + 1;
+      if (!this.cellLength) {
+        this.cellLength = src.length;
+      } else {
+        src = src.replace(/\^/g, '')
+      }
+
+
       this.codes = new Array<GenomeCode>(src.length);
       this.codesInfo = new Array<GenomeCodeInfo>(src.length);
       const codeMap = GenomeCharToCode;
+
       for (let i = 0; i < src.length; i++) {
         const char = src[i];
         const code = codeMap[char];
@@ -31,11 +45,17 @@ export class Genome {
     } else {
       this.codes = src;
       this.codesInfo = new Array<GenomeCodeInfo>(src.length);
+
+      let limitedCellLength = 0;
       for (let i = 0; i < src.length; i++) {
+        if (! limitedCellLength && src[i] === GenomeCode.LimitLength) {
+          limitedCellLength = i + 1;
+        }
         this.codesInfo[i] = GenomeCodeToInfo[src[i]];
       }
+      this.cellLength = limitedCellLength ? limitedCellLength : src.length;
     }
-    this.asString = this.codesInfo.map(code => code.char).join('');
+    this.asString = (typeof origSrc === 'string') ? origSrc : this.codesInfo.map(code => code.char).join('');
   }
 
   /**
@@ -71,9 +91,6 @@ export class Genome {
         }
         const position = Math.floor(Math.random() * newCodes.length + 1);
         const c = getRandomCode();
-        if ("4" === (c as any)) {
-          debugger
-        }
         if (position === 0) {
           newCodes.unshift(c);
         } else if (position >= newCodes.length) {
@@ -99,24 +116,10 @@ export class Genome {
       }
     }
 
+    // if the new codes only include LimitLength codes, then it's invalid
+    if (! newCodes.filter(code => (code !== GenomeCode.LimitLength)).length) {
+      return this;
+    }
     return new Genome(newCodes, this.ancestors ? (this.ancestors + ',' + this.asString) : this.asString);
   }
-
-  // export function cellLengthFromGenome(genome: string) {
-  //   const { settings } = Globals;
-  //   return Math.min(settings.limitCellLength, genome.length);
-  //   // let result = 0;
-
-  //   // for (let i = 0; i < genome.length; ++i) {
-  //   //   switch (genome[i]) {
-  //   //     case GenomeCode.Move:
-  //   //     case GenomeCode.MoveAndEat:
-  //   //     case GenomeCode.Photosynthesize:
-  //   //     case GenomeCode.Sleep:
-  //   //       ++result;
-  //   //   }
-  //   // }
-
-  //   // return Math.min(1, result);
-  // }
 }

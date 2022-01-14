@@ -9,6 +9,10 @@ class GenomeStore {
   genomeInfo: { [genome: string]: Genome } = {};
   usedColors: { [color: number]: true } = {};
 
+  reset() {
+    this.genomeInfo = {}
+    this.usedColors = {}
+  }
   /**
    * 
    * @param genome

@@ -61,7 +61,7 @@ const App: React.FC = observer(() => {
         </Tabs>
       </div>
 
-      <SimulationBoard />
+      {(selectedTab !== eAppMode.Genealogy) && <SimulationBoard />}
 
       <ExplanatoryText/>
 
@@ -75,6 +75,10 @@ const App: React.FC = observer(() => {
 
       {(selectedTab === eAppMode.Tweak) && <div className='Tweak'>
         <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings} />
+      </div>}
+
+      {(selectedTab === eAppMode.Genealogy) && <div>
+        <GenealogyView />
       </div>}
 
 

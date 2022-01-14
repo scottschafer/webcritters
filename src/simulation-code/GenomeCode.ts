@@ -12,6 +12,12 @@ export enum GenomeCode {
   PickupBarrier,
   DropBarrier,
 
+  LimitLength,
+
+  IncrementCounter1,
+  IncrementCounter2,
+  ResetCounters,
+
   PushBarrierForward,
   PushBarrierLeft,
   PushBarrierRight,
@@ -37,6 +43,7 @@ export enum GenomeCode {
   TestBlockedByBarrier,
   TestBlockedByFood,
   TestBlockedByRelatedFood,
+  TestCounter1GreaterThanCounter2,
 
   TestSpawned,
   TestBitten,
@@ -194,6 +201,26 @@ export const GenomeCodeToInfoMap: {
     description: 'Swap left barrier',
     disabled: true
   },
+  [GenomeCode.LimitLength]: {
+    char: '^',
+    numCycles: 0,
+    description: 'Limit critters length',
+  },
+  [GenomeCode.IncrementCounter1]: {
+    char: 'W',
+    numCycles: 0,
+    description: 'Increment Counter 1',
+  },
+  [GenomeCode.IncrementCounter2]: {
+    char: 'X',
+    numCycles: 0,
+    description: 'Increment Counter 2',
+  },
+  [GenomeCode.ResetCounters]: {
+    char: 'Y',
+    numCycles: 0,
+    description: 'Reset counters',
+  },
 
   [GenomeCode.TurnLeft]: {
     char: '<',
@@ -298,7 +325,8 @@ export const GenomeCodeToInfoMap: {
   },
   [GenomeCode.TestCarryingBarrier]: {
     char: 'q',
-    description: 'If carrying barrier'
+    description: 'If carrying barrier',
+    disabled: true
   },
   [GenomeCode.TestNearbyRelative0]: {
     char: 'r',
@@ -312,7 +340,11 @@ export const GenomeCodeToInfoMap: {
     char: 't',
     description: 'If many relatives nearby'
   },
-
+  [GenomeCode.TestCounter1GreaterThanCounter2]: {
+    char: 'u',
+    description: 'If counter1 > counter 2'
+  },
+  
 
   [GenomeCode.IfCondition]: {
     char: '?',
@@ -358,7 +390,7 @@ export const GenomeCodeToInfoMap: {
 
   [GenomeCode.NextMarker]: {
     char: ']',
-    disabled: false,
+    disabled: true,
     numCycles: 0,
     name: '',
     description: 'Next marker'

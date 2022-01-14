@@ -17,13 +17,13 @@ import { genomeStore } from '../../simulation-code/GenomeStore';
 const styles = {
   lines: {
     color: '#1890ff',
-    height: '20px',
+    height: '15px',
   },
   node: {
     backgroundColor: '#fff',
     border: '1px solid #1890ff',
     borderRadius: 8,
-    width: 200,
+    width: 150,
     boxShadow: '5px 5px 15px 0px rgba(0, 0, 0, 0.89)'
   },
   text: {
@@ -46,7 +46,7 @@ const getStyleSwatchForGenome = (color: number) => {
   const rgb = colorToRGB(color);
   return {
     width: 24,
-    height: 24,
+    height: 19,
     'backgroundColor': `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
     marginRight: 5
   };
@@ -123,6 +123,7 @@ export class GenealogyView extends React.Component<GenealogyViewProps> {
       <StyledTree
         data={data}
         renderContents={renderNodeFunction}
+        onClick={() => {}}
       />
 
     </div >

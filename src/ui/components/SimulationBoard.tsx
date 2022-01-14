@@ -163,7 +163,7 @@ export class SimulationBoard extends React.Component<Props> {
       if (!critter.genome) {
         return;
       }
-      const alpha = (critter.energy > 0) ? (critter.energy / critter.spawnEnergy) : 0;
+      const alpha = SimulationConstants.allowDeathBirth ? ((critter.energy > 0) ? (critter.energy / critter.spawnEnergy) : 0) : 1;
       const points: Array<{ x: number, y: number }> = [];
       if (critter.length > 20) {
         debugger;

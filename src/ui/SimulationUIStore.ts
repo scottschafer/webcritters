@@ -10,8 +10,8 @@ import { SimulationSettings } from '../simulation-code/SimulationSettings';
 import { Simulation } from '../simulation-code/Simulation';
 import { decodePoint } from '../simulation-code/Orientation';
 import { eAppMode } from './App';
-
-// import { this.world } from '../simulation-worker/this.world';
+import { settings } from 'cluster';
+import { genomeStore } from '../simulation-code/GenomeStore';
 
 class SimulationUIStore {
   // sharedArrayBufferUint8Array: Uint8Array;
@@ -105,22 +105,42 @@ class SimulationUIStore {
   constructor() {
     makeObservable(this);
     // this.sharedArrayBufferUint8Array = new Uint8Array(this.world.canvasBuffer);
-    setTimeout(() => {
-      persistence.load()
-      this.startSimulation()
-    })
+    this.simulation = new Simulation();
+
+    // periodically update the URL hash with summary and settings
+    setInterval(() => {
+      document.location.hash = JSON.stringify({
+        summary: this.summary,
+        settings: this.settings
+      })
+    }, 1000)
   }
 
   startSimulation() {
     if (this.started) {
       return;
     }
-    this.simulation = new Simulation()
-    this.simulation.reset();
+
+    const hashStr = document.location.hash;
+
+    const hash = JSON.parse(decodeURI(hashStr.substring(1)) || '{}')
+      // periodically update the URL hash with summary and settings
+    setInterval(() => {
+      document.location.hash = JSON.stringify({
+        summary: this.summary,
+        settings: this.settings
+      })
+    }, 1000)
+
+    if (hash.settings) {
+      this.setSettings(hash.settings)
+    }
+
+    this.simulation.reset(hash.summary);
     this.started = true;
-    console.log('startSimulation');
 
     this.runTurnLoop();
+
   }
 
   @action setTurn(turn: number) {
@@ -165,7 +185,7 @@ class SimulationUIStore {
     if ((this.settings.followSelection || this.appMode === eAppMode.Play) && this.following.followingIndex >= 0) {
       selectedCritter = this.simulation.critters[this.following.followingIndex];
       selectedCritterGenome = selectedCritter?.genome;
-      if (selectedCritterGenome?.asString.includes('M') || selectedCritterGenome?.asString.includes('m')) {
+      if (selectedCritterGenome?.asString.includes('M')) {
         const headPoint = decodePoint(selectedCritter.cellPositions[0]);
         this.following.x = headPoint.x - settings.magnifierSize / 2;
         this.following.y = headPoint.y - settings.magnifierSize / 2;
@@ -175,7 +195,6 @@ class SimulationUIStore {
     const t0 = performance.now();
     const turn = this.simulation.takeTurn(turnsToTake, playerControlledIndex); //.then(result => {
     const t1 = performance.now();
-    console.log(`Call to this.world.takeTurn took ${t1 - t0} milliseconds.`);
 
     if (this.settings.followSelection) {
       if (selectedCritter) {
@@ -213,7 +232,6 @@ class SimulationUIStore {
     // this.runTurnLoop();
 
     this.setSummary(this.simulation.getSummary())
-
 
     if (this.settings.showPreview && ((turn - this.lastGetSummaryTurn) > 100)) {
       this.lastGetSummaryTurn = turn;
@@ -265,7 +283,7 @@ class SimulationUIStore {
       const t0 = performance.now();
       this.takeTurn();
       const t1 = performance.now();
-      console.log(`Call to takeTurn took ${t1 - t0} milliseconds.`);
+      // console.log(`Call to takeTurn took ${t1 - t0} milliseconds.`);
     }
 
 
@@ -285,6 +303,7 @@ class SimulationUIStore {
   //     }
   //   }
   }
+  
 
 };
 

@@ -14,6 +14,7 @@ import { genomeStore } from './GenomeStore';
 import { makePoint, Orientation } from './Orientation';
 import { persistence } from './Persistence';
 import { SimulationSettings } from './SimulationSettings';
+import { InsertCritters } from '../ui/components/InsertCritters';
 
 export class Simulation {
 
@@ -23,17 +24,16 @@ export class Simulation {
   emptyCritterSlotIndex: number = SimulationConstants.maxCritters - 1;
 
   canvasBuffer: ArrayBuffer;
-    /* static*/ pixelArray: Uint32Array;
-  /* static*/ pointToCritterIndex: Uint32Array;
-  /* static*/ cellPositions: Uint16Array;
+    pixelArray: Uint32Array;
+  pointToCritterIndex: Uint32Array;
+  cellPositions: Uint16Array;
 
-  /* static*/ turn = 0;
-  /* static*/ numCritters = 0;
+  turn = 0;
+  numCritters = 0;
 
   takingTurn = false;
 
   constructor() {
-
     for (let i = 1; i <= SimulationConstants.maxCritters; i++) {
       this.critters[i] = new Critter(i);
     }
@@ -45,7 +45,7 @@ export class Simulation {
   }
 
 
-  /* static*/ setPixel(point: number, color: number, critterIndex = 0) {
+  setPixel(point: number, color: number, critterIndex = 0) {
 
     if (color !== ColorBarrier && color !== ColorBlack && color !== ColorDeathRay && color !== ColorFood && !critterIndex) {
       debugger;
@@ -59,7 +59,17 @@ export class Simulation {
       && critterIndex !== this.pointToCritterIndex[point]) {
       debugger;
     }
+    if (critterIndex === undefined) {
+      debugger
+    }
     this.pointToCritterIndex[point] = critterIndex;
+
+    if (color !== ColorBlack && color !== ColorGreen && color !== ColorBarrier) {
+      const critter = this.getCritterAtPos(point);
+      if (critter && ! critter.genome) {
+        debugger
+      }
+    }
   }
 
   get settings() {
@@ -184,7 +194,7 @@ export class Simulation {
 
   }
 
-  reset() {
+  reset(summary?: WorldSummary) {
     this.turn = 0;
     for (let i = 0; i < this.pointToCritterIndex.length; i++) {
       this.pointToCritterIndex[i] = 0;
@@ -205,29 +215,56 @@ export class Simulation {
     this.emptyCritterSlots = [];
     for (let i = 0; i < SimulationConstants.maxCritters; i++) {
       this.emptyCritterSlots[i] = SimulationConstants.maxCritters - i;
-    }
-    this.emptyCritterSlotIndex = SimulationConstants.maxCritters - 1;
+   }
 
-    let countToInsert = SimulationConstants.maxCritters / 10;
+   this.critters.forEach(critter => {
+     critter.genome = null;
+     critter.energy = -1
+   })
 
-    Object.keys(SimulationConstants.insertEvolvedCritters).forEach(genome => {
-      const count = SimulationConstants.insertEvolvedCritters[genome];
-      for (let i = 0; i < count; i++) {
-        const pos = this.findEmptyPos();
-        this.spawn(genome, pos, false);
-        --countToInsert;
+   this.emptyCritterSlotIndex = SimulationConstants.maxCritters - 1;
+
+    // let countToInsert = SimulationConstants.maxCritters / 10;
+
+    if (! summary) {
+      summary = {
+        totalCritters: 0,
+        totalFood: 0,
+        topGenomes: [{
+          genome: 'P',
+          color: ColorGreen,
+          count: SimulationConstants.initialPhotosynthesizeCritterCount
+        }]
       }
-    });
-
-    // spawn some critters;
-    for (let i = 0; i < SimulationConstants.initialPhotosynthesizeCritterCount; i++) { // SimulationConstants.maxCritters / 10; i++) {
-      const pos = this.findEmptyPos();
-      // if (i < 1 && SimulationConstants.insertEvolvedCritter) {
-      //   this.spawn(SimulationConstants.insertEvolvedCritter, pos, false);
-      // } else {
-      this.spawn(PhotosynthesizeGenome, pos, false).energy = Math.random() * this.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
-      // }
     }
+
+    // Object.keys(SimulationConstants.insertEvolvedCritters).forEach(genome => {
+    //   const count = SimulationConstants.insertEvolvedCritters[genome];
+    //   for (let i = 0; i < count; i++) {
+    //     const pos = this.findEmptyPos();
+    //     this.spawn(genome, pos, false);
+    //     --countToInsert;
+    //   }
+    // });
+
+    summary.topGenomes.forEach(insert => {
+      for (let i = 0; i < insert.count; i++) { // SimulationConstants.maxCritters / 10; i++) {
+        const pos = this.findEmptyPos();
+        const newCritter = this.spawn(insert.genome, pos, false);
+        if (newCritter) {
+          newCritter.energy = Math.random() * this.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
+        }
+        // if (i < 1 && SimulationConstants.insertEvolvedCritter) {
+        //   this.spawn(SimulationConstants.insertEvolvedCritter, pos, false);
+        // } else {
+        
+        // }
+      }      
+      // debugger
+      // this.numCritters += insert.count
+    })
+    // spawn some critters;
+
   }
 
   takeTurn(numTurns: number = 1, playerControlledIndex = -1): number {
@@ -367,7 +404,7 @@ export class Simulation {
     for (let i = 0; i < 65555; i++) {
       let point = (start + i) & 0xffff;
       if (this.pixelArray[point] === ColorGreen && !this.pointToCritterIndex[point]) {
-        this.pixelArray[point] = ColorBlack;
+        this.setPixel(point, ColorBlack);
         this.spawn('P', point);
         break;
       }
@@ -378,6 +415,9 @@ export class Simulation {
     let critterIndex = this.pointToCritterIndex[point];
     if (critterIndex) {
       const critter = this.critters[critterIndex];
+      if (critter && ! critter.genome) {
+        debugger;
+      }
       return (critter && critter.genome) ? critter : null;
     }
     return null;
