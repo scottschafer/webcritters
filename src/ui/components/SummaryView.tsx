@@ -77,16 +77,11 @@ export class SummaryView extends React.Component<SummaryViewProps> {
                       <div style={getStyleSwatchForGenome(genome.color)}></div>
                     </td>
                     <td>
+                      <span className='genome-and-list'>
                       {genome.genome}
+                      </span>
                       {(genome.genome === selectedGenome) &&
                         <GenomeCodeList genome={selectedGenome} />}
-                      {/* <ReactTooltip
-                        afterShow={simulationStore.handleShowTooltip}
-                        afterHide={simulationStore.handleHideTooltip}
-                        id={genome.genome} className='genome-tooltip' place='bottom' effect='solid'>
-                        <h3>{genome.genome}</h3>
-                        <GenomeCodeList genome={genome.genome} />
-                      </ReactTooltip> */}
                     </td>
                     <td>#{genome.count}</td>
                   </tr>

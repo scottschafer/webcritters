@@ -1,11 +1,17 @@
 .SummaryView {
-  float: right;
+  position: absolute;
+  left: 50%;
+  margin-left: 20px;
   width: 300px;
   z-index: 1;
   position: relative;
   .top-genome-label {
     text-align: left;
     margin-top: 8px;
+  }
+  .genome-and-list {
+    min-width: 250px;
+    display: inline-block;
   }
   table {
     text-align: left;

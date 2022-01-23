@@ -53,7 +53,7 @@ export class Genome {
         }
         this.codesInfo[i] = GenomeCodeToInfo[src[i]];
       }
-      this.cellLength = limitedCellLength ? limitedCellLength : src.length;
+      this.cellLength = limitedCellLength ? Math.min(src.length, limitedCellLength + 1): src.length;
     }
     this.asString = (typeof origSrc === 'string') ? origSrc : this.codesInfo.map(code => code.char).join('');
   }

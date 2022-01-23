@@ -13,33 +13,37 @@ export class SimulationSettings {
   mutationRate = 25;
 
   turnCost = 1;
-  baseInstructionCost = 0.1;
+  baseInstructionCost = 0.2;
   photoSynthesisEnergy = 2.5;
   moveCost = 10;
   eatCost = 1;
-  digestionEfficiencyPercent = 80;
-  biteStrength = .75;
+  digestionEfficiencyPercent = 75;
+  biteStrength = .5;
   sleepCount = 10;
 
   timer1Length = 10;
   timer2Length = 20;
 
-  sightDistance = 32;
+  sightDistance = 64;
 
-  limitCellLength = 5;
+  limitCellLength = 10;
 
-  addFoodCount = 0; // 50;
+  addFoodCount = 50;
 
   showPreview = true;
   sleepAfterSpawnCount = 0; // 25;
 
   allowCannibalism = true;
 
-  sleepTurnEnergyCost = .1;
+  sleepTurnEnergyCost = .2;
   deathRays = 0;
 
   magnifierSize = 32;
   magnification = 8;
 
   sleepWhenCarryingBarrier = 0;
+
+  preventMovingBarriers = true;
+
+  maxPhotosynthesizeCells = 3;
 }

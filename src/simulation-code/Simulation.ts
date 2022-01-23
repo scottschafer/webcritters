@@ -195,6 +195,7 @@ export class Simulation {
   }
 
   reset(summary?: WorldSummary) {
+    genomeStore.reset()
     this.turn = 0;
     for (let i = 0; i < this.pointToCritterIndex.length; i++) {
       this.pointToCritterIndex[i] = 0;
@@ -253,6 +254,8 @@ export class Simulation {
         const newCritter = this.spawn(insert.genome, pos, false);
         if (newCritter) {
           newCritter.energy = Math.random() * this.settings.spawnEnergyPerCell / 2;// pos.x, pos.y);
+          newCritter.orientation = Math.floor(Math.random() * 4)
+          newCritter.lastTailPoint = (pos - Orientation.deltas[newCritter.orientation] + 0xffff) & 0xffff
         }
         // if (i < 1 && SimulationConstants.insertEvolvedCritter) {
         //   this.spawn(SimulationConstants.insertEvolvedCritter, pos, false);
@@ -290,10 +293,13 @@ export class Simulation {
             this.kill(iCritter);
           }
           else if (critter.canSpawn(this) && SimulationConstants.allowDeathBirth) {
-            const tailPoint = critter.lastTailPoint; // .cellPositions[critter.length - 1];
+            const tailPoint = critter.lastTailPoint;
 
             critter.forceSpawn = false;
             let newPos = this.findEmptyPos(tailPoint);
+            if (! newPos && critter.genome.asString !== 'P') {
+              newPos = this.findEmptyPos(tailPoint, true, critter.critterIndex);
+            }
             if (newPos) {
               const newCritter = this.spawn(critter.genome, newPos);
               if (newCritter) {
@@ -423,10 +429,29 @@ export class Simulation {
     return null;
   }
 
-  findEmptyPos(point?: number): number {
+  findEmptyPos(point?: number, killPhoto = false, dontKillIndex = -1): number {
+
+    // if there's a simple 'P' critter or food cell at the point, then kill it so new critter can spawn
+    const killPhotoAtPoint = (point) => {
+      if (killPhoto) {
+        if (this.pixelArray[point] === ColorGreen) {
+          const critterIndex = this.pointToCritterIndex[point];
+          if (! critterIndex) {
+            // remove food dot
+            this.pixelArray[point] = ColorBlack
+          } else if (critterIndex !== dontKillIndex) {
+            const critter = this.critters[critterIndex];
+            if (critter.length === 1) {
+              this.kill(critterIndex, false)
+            }
+          }
+        }
+      }
+    }
 
     if (point !== undefined) {
 
+      killPhotoAtPoint(point)
       if (this.pixelArray[point] === ColorBlack) {
         return point;
       }
@@ -436,8 +461,9 @@ export class Simulation {
       }
       let start = Math.floor(Orientation.deltasWithDiagonals.length * Math.random());
       for (let iTest = 0; iTest < testArray.length; iTest++) {
-        const delta = testArray[iTest];
+        const delta = testArray[(iTest + start) % testArray.length];
         const newPoint = (point + delta) & 0xffff;
+        killPhotoAtPoint(newPoint)
         let pixel = this.pixelArray[newPoint];
         if (pixel === ColorBlack || (pixel === ColorGreen && !this.pointToCritterIndex[newPoint])) {
           return newPoint;
@@ -459,23 +485,8 @@ export class Simulation {
     // return result;
   }
 
-  // setPixel(point: number, value: number, critterIndex = 0) {
-  //   this.pixelArray[point] = value;
-  //   if (critterIndex === undefined) {
-  //     debugger;
-  //   }
-  //   this.pointToCritterIndex[point] = critterIndex;
-  // }
-
-
   spawn(inGenome: string | Genome, point: number, allowMutation = true) {
     let result: Critter = null;
-    const initialEnergy = 100;
-
-    // const parentGenome = allowMutation ? genome : null;
-    // if (allowMutation) {
-    //   genome = reproduceGenome(genome);
-    // }
 
     if (this.emptyCritterSlotIndex >= 0) {
       const genome = genomeStore.registerBirth(inGenome, allowMutation);
@@ -487,8 +498,6 @@ export class Simulation {
       critter.init(genome, point, this);
       critter.orientation = Math.floor(Math.random() * 4)
       result = critter;
-
-      // this.setPixel(point, critter.color, critterIndex);
     }
     if (result) {
       result.energy = result.spawnEnergy / 2;
@@ -504,7 +513,7 @@ export class Simulation {
 
     let color = ColorBlack;
     if (canTurnToFood) {
-      color = (critter.photosynthesizing || critter.wasEaten) ? ColorBlack : ColorGreen;
+      color = (critter.lengthPhotoCells || critter.wasEaten) ? ColorBlack : ColorGreen;
     }
     for (let i = 0; i < critter.length; i++) {
       if (critter.carryingBarrierCount) {

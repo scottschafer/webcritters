@@ -1,0 +1,71 @@
+.InsertCritters {
+  background-color: rgba(0,0,0,.8);
+  margin-left: 30px;
+  margin-bottom: 50px;
+  text-align: left;
+  * {
+    text-align: left;
+  }
+
+  table {
+    border-collapse:separate; 
+    border-spacing: 0 1em;  
+    margin-left: 50px;
+    margin-right: 50px;
+    margin-top: 20px;
+  
+    td { 
+      padding: 4px;
+    }
+    tr:nth-child(even) {background-color: rgba(255,255,255, .1);}
+  }
+
+
+  .inputGenome {
+    font-size: 36px;
+    font-family: monospace;
+  }
+
+  .insertContainer {
+    button {
+      margin-right: 10px;
+    }
+    input {
+      font-size: 24px;
+    }
+
+    label { 
+      font-size: 18px;
+    }
+  }
+  button {
+    font-size: 24px;
+    margin-left: 15px;
+  }
+
+  .cancel {
+    float: right;
+    margin-right: 10px;
+  }
+
+  .description {
+    position: fixed;
+    background-color: black;
+    padding-top: 15px;
+    left: 50px;
+    right: 50px;
+    top: 156px;
+    bottom: 50px;
+    overflow: auto;
+
+    table {
+      th, td {
+        padding-right: 10px;
+      }
+    }
+  }
+
+  label {
+    font-size: 18px;
+  }
+}

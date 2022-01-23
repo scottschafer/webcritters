@@ -1,31 +1,37 @@
 import React from "react";
 import "./ExplanatoryText.scss";
+import { observer } from 'mobx-react';
+import { action, observable } from "mobx";
 
-export class ExplanatoryText extends React.Component {
+
+export class ExplanatoryText extends React.Component<{}, {expanded: boolean}> {
+
+  @observable expanded = true;
+
+  handleClickToggle = () => {
+    this.setState({expanded: ! (this.state?.expanded ?? true)})
+  }
+
   render() {
+    const expanded = this.state?.expanded ?? true;
+
     return (
       <>
         <div className="ExplanatoryTextLogo">
-          <table>
-            <tr>
-              <td>
-                <img src="fledermoose-logo.jpg"/>
-              </td>
-              <td>
-              <h1>Webcritters</h1>
-              <h3>an evolutionary simulation</h3>
-              <p><i>by Scott Schafer for Fledermoose Inc</i> </p>
-              </td>
-            </tr>
-          </table>
-        </div>
-        <div className="ExplanatoryText">
-          <div>
+          <h1>Webcritters</h1>
+          <h3>an evolutionary simulation</h3>
+           <img src="fledermoose-logo.jpg"/>
+           <p><i>by Scott Schafer for Fledermoose Inc</i> </p>
+         </div>
+
+        <div className={'ExplanatoryText ' + (expanded ? 'ExplanatoryTextExpanded' : 'ExplanatoryTextCollapsed')}>
+          <div className='contents'>
             <p>{`Welcome to the fast evolving world of Webcritters!`}</p>
 
+            {expanded && <>
             <p>
-              {`On the left you'll see a rapidly moving and changing set of dots and colors. This is a grid containing
-      evolving simulated lifeforms, or "critters". The circle is a magnifying glass, and you can drag it around to inspect the goings on.
+              {`The rapidly moving and changing grid of dots and colors on the left contains
+      evolving simulated lifeforms, or "critters". You can use the magnifying glass (the circle) to inspect the goings on.
       You can also turn down the speed and tweak various settings, such as turning on barriers.`}
             </p>
 
@@ -65,10 +71,15 @@ export class ExplanatoryText extends React.Component {
             </p>
 
             <p>{`There's more to come, when time and energy permit. Enjoy!`}</p>
+            </>
+  }
           </div>
         </div>
 
-        <div className="scrollMsg">scroll for more</div>
+        {expanded && <div className="scrollMsg">scroll for more</div>}
+        <div className="btnExpandToggle">
+          <button onClick={this.handleClickToggle}>{expanded ? 'Show Less' : 'Show More'}</button>
+         </div>
       </>
     );
   }

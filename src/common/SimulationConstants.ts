@@ -2,6 +2,8 @@
 export class SimulationConstants {
   static readonly validate = false;
 
+  static readonly allowGenealogy = false
+  
 
   static readonly allowDeathBirth = true // true;
   static readonly insertEvolvedCritters = false ? {

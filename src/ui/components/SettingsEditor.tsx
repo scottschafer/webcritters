@@ -155,15 +155,28 @@ const settingsFieldsAdvanced: ValuesEditorPanelFieldDefs = [
     maxValue: 20,
   },
   {
+    
+    label: 'Max photosynthesis cells',
+    fieldName: 'maxPhotosynthesizeCells',
+    type: 'range',
+    minValue: 1,
+    maxValue: 5,
+  },
+  {
     label: 'Add food',
     fieldName: 'addFoodCount',
     type: 'range',
     minValue: 0,
     maxValue: 500,
   },
+  // {
+  //   label: 'Allow Cannibalism',
+  //   fieldName: 'allowCannibalism',
+  //   type: 'boolean'
+  // },
   {
-    label: 'Allow Cannibalism',
-    fieldName: 'allowCannibalism',
+    label: 'Prevent Moving Barriers',
+    fieldName: 'preventMovingBarriers',
     type: 'boolean'
   },
   {

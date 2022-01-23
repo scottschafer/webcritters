@@ -15,14 +15,18 @@ import { SettingsEditorAdvanced, SettingsEditorBasic } from "./components/Settin
 import { GenealogyView } from "./components/GenealogyView";
 import ReactResizeDetector from 'react-resize-detector'
 import { ExplanatoryText } from './components/ExplanatoryText';
+import { Reset } from './components/Reset';
+import { InsertCritters } from './components/InsertCritters';
 
-const tabs = ['Evolve' /*, 'Play' */, 'Tweak', 'Genealogy'];
+const tabs = ['Evolve', 'Insert' /*, 'Play' */, 'Settings', 'Reset' /*, 'Genealogy' */];
 
 export enum eAppMode {
   Evolve,
+  Insert,
   Tweak,
-  Genealogy,
+  Reset,
   Play,
+  Genealogy,
 };
 
 const App: React.FC = observer(() => {
@@ -32,10 +36,10 @@ const App: React.FC = observer(() => {
     ReactTooltip.rebuild();
   });
 
-  const [selectedTab, setSelectedTab] = useState(0);
+  // const [selectedTab, setSelectedTab] = useState(0);
 
   const handleChangeTab = (event, newValue: number) => {
-    setSelectedTab(newValue);
+    // setSelectedTab(newValue);
     simulationStore.setAppMode(newValue)
   };
 
@@ -46,6 +50,7 @@ const App: React.FC = observer(() => {
     };
   }
 
+  const selectedTab = simulationStore.appMode;
   return (
     <div className="App">
       <ReactTooltip />
@@ -73,14 +78,23 @@ const App: React.FC = observer(() => {
         turn={simulationStore.turn} />
       {/* </Grid> */}
 
-      {(selectedTab === eAppMode.Tweak) && <div className='Tweak'>
+      {(selectedTab === eAppMode.Tweak) && <div className='Page'>
         <SettingsEditorAdvanced settings={simulationStore.settings} onChange={simulationStore.setSettings} />
       </div>}
 
-      {(selectedTab === eAppMode.Genealogy) && <div>
+      {(selectedTab === eAppMode.Genealogy) && <div className='Page'>
         <GenealogyView />
       </div>}
 
+      {(selectedTab === eAppMode.Reset) && <div className='Page'>
+        <Reset />
+      </div>}
+
+      {(selectedTab === eAppMode.Insert) && <div className='Page'>
+        <InsertCritters />
+      </div>}
+
+      
 
       {false && <Grid container>
 

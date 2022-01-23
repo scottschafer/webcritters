@@ -200,7 +200,7 @@ export class SimulationBoard extends React.Component<Props> {
         ctxDetails.stroke();
         ctxDetails.closePath();
 
-        if (critter.photosynthesizing && genome.length > 1) {
+        if (critter.lengthPhotoCells && genome.length > 1) {
           ctxDetails.beginPath();
           ctxDetails.strokeStyle = `rgba(0,255,0,${alpha})`;
 

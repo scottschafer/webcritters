@@ -12,6 +12,7 @@ import { decodePoint } from '../simulation-code/Orientation';
 import { eAppMode } from './App';
 import { settings } from 'cluster';
 import { genomeStore } from '../simulation-code/GenomeStore';
+import { ColorGreen } from '../simulation-code/Colors';
 
 class SimulationUIStore {
   // sharedArrayBufferUint8Array: Uint8Array;
@@ -35,7 +36,6 @@ class SimulationUIStore {
   runningAtFullSpeed = false;
   isTakingTurn = false;
   simulation: Simulation;
-
 
   started = false;
 
@@ -167,6 +167,31 @@ class SimulationUIStore {
     this.selectedGenome = genome;
   }
 
+  insertCritters(genome: string, count: number, killAllFirst: boolean = false) {
+    if (killAllFirst) {
+      this.simulation.reset({
+        totalCritters: 0,
+        totalFood: 0,
+        topGenomes: [{
+          genome: genome,
+          color: ColorGreen,
+          count: count
+        }]
+      })
+    } else {
+
+      while (count--) {
+        const pt = this.simulation.findEmptyPos()
+        const critter = this.simulation.spawn(genome, pt, false)
+        if (! critter) {
+          break;
+        }
+        critter.energy = critter.spawnEnergy / 2
+        critter.age = 0
+      }
+    }
+  }
+
   @action.bound takeTurn() {
     
     let playerControlledIndex = -1;
@@ -221,11 +246,6 @@ class SimulationUIStore {
       }
     }
 
-    if (this.appMode === eAppMode.Play) {
-      this.setPlayDetail(this.simulation.getDetail(this.following, SimulationConstants.playDim));
-    } else {
-      this.setDetail(this.simulation.getDetail(this.following, settings.magnifierSize))
-    }
     //    this.world.getDetail(this.following, settings.magnifierSize)
     this.isTakingTurn = false;
     this.setTurn(turn);
@@ -240,7 +260,7 @@ class SimulationUIStore {
     }
 
 
-    if ((turn - this.lastGetGenealogyTurn) > 3000) {
+    if (SimulationConstants.allowGenealogy && (turn - this.lastGetGenealogyTurn) > 3000) {
       this.lastGetGenealogyTurn = turn;
       this.setGenealogyReport(this.simulation.getGenealogyReport())
     }
@@ -285,7 +305,12 @@ class SimulationUIStore {
       const t1 = performance.now();
       // console.log(`Call to takeTurn took ${t1 - t0} milliseconds.`);
     }
-
+    const {settings} = this;
+    if (this.appMode === eAppMode.Play) {
+      this.setPlayDetail(this.simulation.getDetail(this.following, SimulationConstants.playDim));
+    } else {
+      this.setDetail(this.simulation.getDetail(this.following, settings.magnifierSize))
+    }
 
   //   if (!this.delay) {
   //     if (!this.runningAtFullSpeed) {
